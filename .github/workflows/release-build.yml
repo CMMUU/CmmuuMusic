@@ -78,7 +78,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform.artifact-name }}
-          path: ${{ matrix.platform.bundle-path }}
+          path: |
+            ${{ matrix.platform.bundle-path }}/**/*.AppImage
+            ${{ matrix.platform.bundle-path }}/**/*.deb
+            ${{ matrix.platform.bundle-path }}/**/*.rpm
+            ${{ matrix.platform.bundle-path }}/**/*.dmg
+            ${{ matrix.platform.bundle-path }}/**/*.exe
+            ${{ matrix.platform.bundle-path }}/**/*.msi
           if-no-files-found: error
 
   release:
