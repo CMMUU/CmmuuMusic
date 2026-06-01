@@ -10,13 +10,18 @@ const search = useSearchStore()
 const player = usePlayerStore()
 const playlist = usePlaylistStore()
 
-const { keyword, result, loading, error } = storeToRefs(search)
+const { keyword, source, result, loading, error } = storeToRefs(search)
 const { playlists } = storeToRefs(playlist)
 const selectedPlaylistId = ref<string>('')
 const actionMessage = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 
 const canAddToPlaylist = computed(() => playlists.value.length > 0)
+const sourceOptions = [
+  { value: 'all', label: '全部音源' },
+  { value: 'demo', label: '内置 demo' },
+  { value: 'builtin:changqing-svip', label: '长青 SVIP' },
+]
 
 onMounted(async () => {
   await playlist.refresh()
@@ -73,7 +78,11 @@ function addToQueue(song: Song) {
     </div>
 
     <div class="search__tools">
-      <span class="search__source">当前音源：内置 demo</span>
+      <select v-model="source" class="playlist-select">
+        <option v-for="item in sourceOptions" :key="item.value" :value="item.value">
+          {{ item.label }}
+        </option>
+      </select>
       <select v-model="selectedPlaylistId" class="playlist-select" :disabled="!canAddToPlaylist">
         <option value="">{{ canAddToPlaylist ? '选择歌单' : '请先创建歌单' }}</option>
         <option v-for="item in playlists" :key="item.id" :value="item.id">
@@ -87,6 +96,9 @@ function addToQueue(song: Song) {
     <p v-if="actionMessage" class="message">{{ actionMessage }}</p>
 
     <div v-if="result && result.songs.length" class="results">
+      <div class="results__summary">
+        共 {{ result.total }} 条结果，当前显示 {{ result.songs.length }} 条
+      </div>
       <div v-for="song in result.songs" :key="song.id" class="result-item">
         <div class="result-item__main">
           <div class="result-item__title">{{ song.title }}</div>
@@ -102,11 +114,14 @@ function addToQueue(song: Song) {
           </button>
         </div>
       </div>
+      <button v-if="result.hasMore" class="load-more" :disabled="loading" @click="search.loadMore()">
+        {{ loading ? '加载中…' : '加载更多' }}
+      </button>
     </div>
 
-    <div v-else-if="result" class="empty">暂无匹配的 demo 歌曲</div>
+    <div v-else-if="result" class="empty">暂无匹配歌曲</div>
 
-    <div v-else class="empty">输入关键词开始搜索，试试 SoundHelix 或 demo</div>
+    <div v-else class="empty">输入关键词开始搜索，试试 SoundHelix、demo 或 lx</div>
   </div>
 </template>
 
@@ -192,6 +207,12 @@ function addToQueue(song: Song) {
   gap: 4px;
 }
 
+.results__summary {
+  padding: 0 4px 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
 .result-item {
   display: flex;
   align-items: center;
@@ -239,6 +260,25 @@ function addToQueue(song: Song) {
 .text-btn:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+.load-more {
+  align-self: center;
+  margin-top: 12px;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.load-more:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.load-more:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .empty {

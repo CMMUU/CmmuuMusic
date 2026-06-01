@@ -120,8 +120,11 @@ function addSelectedSongsToQueue() {
       <div v-if="songsLoading" class="empty empty--small">加载歌曲中…</div>
       <ul v-else-if="selectedSongs.length" class="song-list">
         <li v-for="song in selectedSongs" :key="song.id" class="song-item">
-          <span class="song-item__title">{{ song.title }}</span>
-          <span class="song-item__meta">{{ song.artist ?? '未知艺人' }} · {{ song.album ?? '未知专辑' }}</span>
+          <div class="song-item__main">
+            <span class="song-item__title">{{ song.title }}</span>
+            <span class="song-item__meta">{{ song.artist ?? '未知艺人' }} · {{ song.album ?? '未知专辑' }}</span>
+          </div>
+          <button class="text-btn" @click="player.addToQueue(song)">加入队列</button>
         </li>
       </ul>
       <div v-else class="empty empty--small">这个歌单还没有歌曲</div>
@@ -352,6 +355,13 @@ function addSelectedSongsToQueue() {
   gap: 16px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.song-item__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .song-item:last-child {
