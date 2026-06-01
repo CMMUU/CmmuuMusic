@@ -28,7 +28,7 @@
 
 ### 1.1 项目背景
 
-Cmmuu Music（澜音）是一款跨平台桌面音乐播放器框架，现基于 **Electron + Vue 3** 开发。项目不直接存储/提供音乐源文件，仅提供插件运行框架与播放功能，用户通过合规插件获取音乐数据。
+Cmmuu Music 是一款跨平台桌面音乐播放器框架，现基于 **Electron + Vue 3** 开发。项目不直接存储/提供音乐源文件，仅提供插件运行框架与播放功能，用户通过合规插件获取音乐数据。
 
 **核心痛点驱动重写：**
 - Electron 内存占用大（通常 250MB+），启动慢
@@ -1273,7 +1273,7 @@ impl PreloadManager {
 
 ```
 ┌───────────────────────────────────────────────────┐
-│  Title Bar: [Logo] 澜音  ─  [最小化] [最大化] [关闭] │
+│  Title Bar: [Logo] Cmmuu Music  ─  [最小化] [最大化] [关闭] │
 ├───────────┬───────────────────────────────────────┤
 │           │                                       │
 │  Sidebar  │          Content Area                 │
@@ -1463,7 +1463,7 @@ import { test, expect } from '@playwright/test';
 
 test('app launches and shows home page', async ({ page }) => {
   await page.goto('tauri://localhost');
-  await expect(page.locator('[data-testid="app-title"]')).toHaveText('澜音');
+  await expect(page.locator('[data-testid="app-title"]')).toHaveText('Cmmuu Music');
 });
 
 test('can search for music', async ({ page }) => {
@@ -1738,4 +1738,4 @@ export const createPlaylist = (name: string) =>
 
 ---
 
-> **本文档基于 Cmmuu Music（澜音）现有架构与功能，结合 Rust + Tauri v2 技术栈进行全面现代化重设计。所有设计决策均考虑了与原版插件的兼容性、性能优化、安全性和用户体验。**
+> **本文档基于 Cmmuu Music 现有架构与功能，结合 Rust + Tauri v2 技术栈进行全面现代化重设计。所有设计决策均考虑了与原版插件的兼容性、性能优化、安全性和用户体验。**
