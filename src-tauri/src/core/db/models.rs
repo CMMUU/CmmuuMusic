@@ -228,6 +228,16 @@ impl Database {
             Ok(rows)
         })
     }
+
+    pub fn set_plugin_enabled(&self, id: &str, enabled: bool) -> Result<bool, DbError> {
+        self.with_conn(|c| {
+            let updated = c.execute(
+                "UPDATE plugins SET enabled = ?2, updated_at = datetime('now') WHERE id = ?1",
+                params![id, enabled as i32],
+            )?;
+            Ok(updated > 0)
+        })
+    }
 }
 
 fn row_to_playlist(row: &rusqlite::Row<'_>) -> rusqlite::Result<Playlist> {
@@ -451,10 +461,11 @@ mod tests {
         };
 
         db.upsert_plugin_record(&plugin).unwrap();
+        assert!(db.set_plugin_enabled(&plugin.info.id, false).unwrap());
         let plugins = db.list_plugin_records().unwrap();
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].info.id, plugin.info.id);
         assert_eq!(plugins[0].info.plugin_type, PluginType::Lx);
-        assert!(plugins[0].enabled);
+        assert!(!plugins[0].enabled);
     }
 }

@@ -61,6 +61,8 @@ pub fn run() {
             commands::settings::set_setting,
             // 插件（骨架）
             commands::plugin::list_plugins,
+            commands::plugin::register_local_plugin,
+            commands::plugin::set_plugin_enabled,
             // 搜索（骨架）
             commands::search::search_music,
             // 歌词（骨架）

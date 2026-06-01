@@ -1,7 +1,19 @@
+use serde::Deserialize;
 use tauri::State;
 
 use crate::types::plugin::{MusicSource, PluginInfo, PluginRecord, PluginStatus, PluginType};
 use crate::AppState;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterLocalPluginRequest {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: Option<String>,
+    pub plugin_type: PluginType,
+    pub file_path: String,
+}
 
 #[tauri::command]
 pub async fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginRecord>, String> {
@@ -11,6 +23,50 @@ pub async fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginRecord
         .map_err(|e| e.to_string())?;
     records.push(builtin_changqing_plugin());
     Ok(records)
+}
+
+#[tauri::command]
+pub async fn register_local_plugin(
+    request: RegisterLocalPluginRequest,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let record = PluginRecord {
+        info: PluginInfo {
+            id: request.id,
+            name: request.name,
+            description: String::new(),
+            version: request.version,
+            author: request.author.unwrap_or_default(),
+            homepage: String::new(),
+            plugin_type: request.plugin_type,
+        },
+        sources: Vec::new(),
+        file_path: request.file_path,
+        enabled: false,
+        status: PluginStatus::Disabled,
+        installed_at: String::new(),
+        updated_at: String::new(),
+    };
+    state
+        .db
+        .upsert_plugin_record(&record)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_plugin_enabled(
+    plugin_id: String,
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    if plugin_id.starts_with("builtin:") {
+        return Ok(false);
+    }
+
+    state
+        .db
+        .set_plugin_enabled(&plugin_id, enabled)
+        .map_err(|e| e.to_string())
 }
 
 fn builtin_changqing_plugin() -> PluginRecord {

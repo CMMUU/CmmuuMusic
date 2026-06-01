@@ -12,11 +12,7 @@ const pluginsError = ref<string | null>(null)
 
 onMounted(async () => {
   await settings.load()
-  try {
-    plugins.value = await api.listPlugins()
-  } catch (e) {
-    pluginsError.value = String(e)
-  }
+  await refreshPlugins()
 })
 
 const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
@@ -24,6 +20,28 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   { value: 'light', label: '浅色' },
   { value: 'system', label: '跟随系统' },
 ]
+
+async function refreshPlugins() {
+  pluginsError.value = null
+  try {
+    plugins.value = await api.listPlugins()
+  } catch (e) {
+    pluginsError.value = String(e)
+  }
+}
+
+async function togglePlugin(plugin: PluginRecord) {
+  pluginsError.value = null
+  try {
+    const changed = await api.setPluginEnabled(plugin.info.id, !plugin.enabled)
+    if (!changed) {
+      pluginsError.value = '内置音源当前仅登记元数据，不能直接启用执行。'
+    }
+    await refreshPlugins()
+  } catch (e) {
+    pluginsError.value = String(e)
+  }
+}
 </script>
 
 <template>
@@ -78,7 +96,12 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
               </span>
             </div>
           </div>
-          <span class="plugin-card__status">{{ plugin.enabled ? '已启用' : '仅内置' }}</span>
+          <div class="plugin-card__side">
+            <span class="plugin-card__status">{{ plugin.enabled ? '已启用' : '仅内置' }}</span>
+            <button class="plugin-card__action" @click="togglePlugin(plugin)">
+              {{ plugin.enabled ? '禁用' : '启用' }}
+            </button>
+          </div>
         </article>
       </div>
       <p v-else class="setting-row__value">暂无内置音源</p>
@@ -214,6 +237,14 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   font-size: 13px;
 }
 
+.plugin-card__side {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .plugin-card__status {
   flex-shrink: 0;
   align-self: flex-start;
@@ -222,6 +253,18 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   background: rgba(124, 108, 240, 0.16);
   color: var(--accent);
   font-size: 12px;
+}
+
+.plugin-card__action {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.plugin-card__action:hover {
+  color: var(--text-primary);
 }
 
 .source-tags {

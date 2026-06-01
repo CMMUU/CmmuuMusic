@@ -4,6 +4,7 @@ import type {
   PlayHistoryRecord,
   PlaybackStatus,
   PluginRecord,
+  PluginType,
   SearchRequest,
   SearchResult,
   Song,
@@ -50,7 +51,20 @@ export const setSetting = (key: string, value: string) =>
   invoke<void>('set_setting', { key, value })
 
 // 插件
+export interface RegisterLocalPluginRequest {
+  id: string
+  name: string
+  version: string
+  author?: string | null
+  pluginType: PluginType
+  filePath: string
+}
+
 export const listPlugins = () => invoke<PluginRecord[]>('list_plugins')
+export const registerLocalPlugin = (request: RegisterLocalPluginRequest) =>
+  invoke<void>('register_local_plugin', { request })
+export const setPluginEnabled = (pluginId: string, enabled: boolean) =>
+  invoke<boolean>('set_plugin_enabled', { pluginId, enabled })
 
 // 搜索
 export const searchMusic = (request: SearchRequest) =>
