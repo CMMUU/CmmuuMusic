@@ -1,0 +1,63 @@
+[package]
+name = "cmmuu-music"
+version = "0.1.0"
+description = "Cmmuu Music — Tauri v2 跨平台音乐播放器"
+authors = ["CangLu"]
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "cmmuu_music_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-process = "2"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Audio (POC: 本地文件解码 + 输出)
+symphonia = { version = "0.5", features = ["all"] }
+cpal = "0.15"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Database
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Crypto (供插件宿主 API 使用)
+md-5 = "0.10"
+base64 = "0.22"
+
+# Utilities
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"
+env_logger = "0.11"
+parking_lot = "0.12"
+thiserror = "2"
+anyhow = "1"
+
+[features]
+default = ["build-frontend"]
+build-frontend = []
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
