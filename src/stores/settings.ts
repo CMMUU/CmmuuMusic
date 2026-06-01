@@ -10,6 +10,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const useCustomTitleBar = ref(false)
   const loaded = ref(false)
 
+  function applyTheme(mode: ThemeMode) {
+    document.documentElement.dataset.theme = mode
+  }
+
   async function load() {
     try {
       const theme = await api.getSetting('themeMode')
@@ -18,6 +22,7 @@ export const useSettingsStore = defineStore('settings', () => {
       if (vol) volume.value = Number(vol)
       const customTitleBar = await api.getSetting('useCustomTitleBar')
       if (customTitleBar) useCustomTitleBar.value = customTitleBar === 'true'
+      applyTheme(themeMode.value)
     } catch (e) {
       console.error('加载设置失败', e)
     } finally {
@@ -27,6 +32,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function setThemeMode(mode: ThemeMode) {
     themeMode.value = mode
+    applyTheme(mode)
     await api.setSetting('themeMode', mode)
   }
 
@@ -49,5 +55,6 @@ export const useSettingsStore = defineStore('settings', () => {
     setThemeMode,
     setVolume,
     setUseCustomTitleBar,
+    applyTheme,
   }
 })

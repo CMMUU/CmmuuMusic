@@ -1,31 +1,25 @@
 :root {
-  /* 主题色（对齐图标的青→紫渐变） */
   --accent-start: #4dd6e6;
   --accent-end: #9b7cf0;
   --accent: #7c6cf0;
   --accent-hover: #8f80f5;
 
-  /* 暗色背景（默认） */
   --bg-primary: #121214;
   --bg-secondary: #1a1a1e;
   --bg-tertiary: #26262c;
 
-  /* 文字 */
   --text-primary: #f5f5f7;
   --text-secondary: #b0b0b8;
   --text-tertiary: #6e6e78;
 
-  /* 功能色 */
   --success: #34c759;
   --warning: #ff9f0a;
   --error: #ff453a;
 
-  /* 播放器 */
   --player-bg: #18181c;
   --progress-bar: var(--accent);
   --progress-bg: #3a3a42;
 
-  /* 圆角 */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -33,6 +27,34 @@
   --radius-full: 9999px;
 
   color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg-primary: #f7f7fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #ececf3;
+  --text-primary: #16161a;
+  --text-secondary: #5f6070;
+  --text-tertiary: #8c8d99;
+  --player-bg: #ffffff;
+  --progress-bg: #d8d8e0;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme='system'] {
+    --bg-primary: #f7f7fb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #ececf3;
+    --text-primary: #16161a;
+    --text-secondary: #5f6070;
+    --text-tertiary: #8c8d99;
+    --player-bg: #ffffff;
+    --progress-bg: #d8d8e0;
+
+    color-scheme: light;
+  }
 }
 
 * {
