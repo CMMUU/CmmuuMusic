@@ -10,6 +10,22 @@ pub enum PluginType {
     Lx,
 }
 
+impl PluginType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Cmmuu => "cmmuu",
+            Self::Lx => "lx",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "lx" => Self::Lx,
+            _ => Self::Cmmuu,
+        }
+    }
+}
+
 /// 插件状态。对齐 SDD §5.2.1 生命周期。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

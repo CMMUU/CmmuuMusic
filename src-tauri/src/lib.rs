@@ -52,6 +52,10 @@ pub fn run() {
             commands::playlist::delete_playlist,
             commands::playlist::add_song_to_playlist,
             commands::playlist::list_playlist_songs,
+            // 历史
+            commands::history::record_play_history,
+            commands::history::list_play_history,
+            commands::history::list_recent_songs,
             // 设置
             commands::settings::get_setting,
             commands::settings::set_setting,
@@ -61,6 +65,7 @@ pub fn run() {
             commands::search::search_music,
             // 歌词（骨架）
             commands::lyrics::get_lyrics,
+            commands::lyrics::set_lyrics,
         ])
         .run(tauri::generate_context!())
         .expect("启动 Tauri 应用时发生错误");

@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type {
   Playlist,
+  PlayHistoryRecord,
   PlaybackStatus,
   PluginRecord,
   SearchRequest,
@@ -34,6 +35,14 @@ export const addSongToPlaylist = (playlistId: string, song: Song) =>
 export const listPlaylistSongs = (playlistId: string) =>
   invoke<Song[]>('list_playlist_songs', { playlistId })
 
+// 播放历史
+export const recordPlayHistory = (song: Song, durationPlayed?: number | null) =>
+  invoke<PlayHistoryRecord>('record_play_history', { song, durationPlayed })
+export const listPlayHistory = (limit?: number) =>
+  invoke<PlayHistoryRecord[]>('list_play_history', { limit })
+export const listRecentSongs = (limit?: number) =>
+  invoke<Song[]>('list_recent_songs', { limit })
+
 // 设置
 export const getSetting = (key: string) =>
   invoke<string | null>('get_setting', { key })
@@ -50,3 +59,5 @@ export const searchMusic = (request: SearchRequest) =>
 // 歌词
 export const getLyrics = (songId: string) =>
   invoke<string | null>('get_lyrics', { songId })
+export const setLyrics = (songId: string, lyricText: string) =>
+  invoke<boolean>('set_lyrics', { songId, lyricText })

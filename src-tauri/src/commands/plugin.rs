@@ -4,8 +4,17 @@ use crate::types::plugin::{MusicSource, PluginInfo, PluginRecord, PluginStatus, 
 use crate::AppState;
 
 #[tauri::command]
-pub async fn list_plugins(_state: State<'_, AppState>) -> Result<Vec<PluginRecord>, String> {
-    Ok(vec![PluginRecord {
+pub async fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginRecord>, String> {
+    let mut records = state
+        .db
+        .list_plugin_records()
+        .map_err(|e| e.to_string())?;
+    records.push(builtin_changqing_plugin());
+    Ok(records)
+}
+
+fn builtin_changqing_plugin() -> PluginRecord {
+    PluginRecord {
         info: PluginInfo {
             id: "builtin:changqing-svip".into(),
             name: "长青SVIP音源".into(),
@@ -47,5 +56,5 @@ pub async fn list_plugins(_state: State<'_, AppState>) -> Result<Vec<PluginRecor
         status: PluginStatus::Disabled,
         installed_at: "2026-06-02T00:00:00Z".into(),
         updated_at: "2026-06-02T00:00:00Z".into(),
-    }])
+    }
 }

@@ -60,6 +60,15 @@ pub struct Song {
     pub play_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlayHistoryRecord {
+    pub id: i64,
+    pub song: Song,
+    pub played_at: String,
+    pub duration_played: Option<f64>,
+}
+
 /// 插件请求中携带的音乐信息（兼容原版字段命名）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MusicInfo {

@@ -21,6 +21,13 @@ export interface Song {
   playUrl?: string | null
 }
 
+export interface PlayHistoryRecord {
+  id: number
+  song: Song
+  playedAt: string
+  durationPlayed?: number | null
+}
+
 export interface Playlist {
   id: string
   name: string

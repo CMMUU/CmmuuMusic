@@ -1,8 +1,9 @@
 use rusqlite::{params, OptionalExtension};
 
 use super::{Database, DbError};
-use crate::types::music::Song;
+use crate::types::music::{PlayHistoryRecord, Song};
 use crate::types::playlist::Playlist;
+use crate::types::plugin::{PluginInfo, PluginRecord, PluginStatus, PluginType};
 
 impl Database {
     /// 创建播放列表。
@@ -103,6 +104,130 @@ impl Database {
             Ok(())
         })
     }
+
+    pub fn record_play_history(
+        &self,
+        song: &Song,
+        duration_played: Option<f64>,
+    ) -> Result<PlayHistoryRecord, DbError> {
+        self.with_conn(|c| {
+            upsert_song_conn(c, song)?;
+            c.execute(
+                "INSERT INTO play_history (song_id, duration_played) VALUES (?1, ?2)",
+                params![song.id, duration_played],
+            )?;
+            let id = c.last_insert_rowid();
+            c.query_row(
+                "SELECT ph.id, s.id, s.source, s.title, s.artist, s.album, s.cover_url, s.duration, s.lyric_text,
+                        ph.played_at, ph.duration_played
+                 FROM play_history ph
+                 JOIN songs s ON s.id = ph.song_id
+                 WHERE ph.id = ?1",
+                params![id],
+                row_to_play_history,
+            )
+        })
+    }
+
+    pub fn list_play_history(&self, limit: u32) -> Result<Vec<PlayHistoryRecord>, DbError> {
+        self.with_conn(|c| {
+            let mut stmt = c.prepare(
+                "SELECT ph.id, s.id, s.source, s.title, s.artist, s.album, s.cover_url, s.duration, s.lyric_text,
+                        ph.played_at, ph.duration_played
+                 FROM play_history ph
+                 JOIN songs s ON s.id = ph.song_id
+                 ORDER BY ph.played_at DESC, ph.id DESC
+                 LIMIT ?1",
+            )?;
+            let rows = stmt
+                .query_map(params![limit.max(1)], row_to_play_history)?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+    }
+
+    pub fn list_recent_songs(&self, limit: u32) -> Result<Vec<Song>, DbError> {
+        self.with_conn(|c| {
+            let mut stmt = c.prepare(
+                "SELECT s.id, s.source, s.title, s.artist, s.album, s.cover_url, s.duration, s.lyric_text
+                 FROM songs s
+                 JOIN (
+                    SELECT song_id, MAX(id) AS last_history_id
+                    FROM play_history
+                    GROUP BY song_id
+                 ) recent ON recent.song_id = s.id
+                 JOIN play_history ph ON ph.id = recent.last_history_id
+                 ORDER BY ph.played_at DESC, ph.id DESC
+                 LIMIT ?1",
+            )?;
+            let rows = stmt
+                .query_map(params![limit.max(1)], row_to_song)?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+    }
+
+    pub fn set_song_lyrics(&self, song_id: &str, lyric_text: &str) -> Result<bool, DbError> {
+        self.with_conn(|c| {
+            let updated = c.execute(
+                "UPDATE songs SET lyric_text = ?2 WHERE id = ?1",
+                params![song_id, lyric_text],
+            )?;
+            Ok(updated > 0)
+        })
+    }
+
+    pub fn get_song_lyrics(&self, song_id: &str) -> Result<Option<String>, DbError> {
+        self.with_conn(|c| {
+            c.query_row(
+                "SELECT lyric_text FROM songs WHERE id = ?1",
+                params![song_id],
+                |r| r.get::<_, Option<String>>(0),
+            )
+            .optional()
+            .map(|value| value.flatten())
+        })
+    }
+
+    pub fn upsert_plugin_record(&self, plugin: &PluginRecord) -> Result<(), DbError> {
+        self.with_conn(|c| {
+            c.execute(
+                "INSERT INTO plugins (id, name, version, author, plugin_type, file_path, enabled, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+                 ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    version = excluded.version,
+                    author = excluded.author,
+                    plugin_type = excluded.plugin_type,
+                    file_path = excluded.file_path,
+                    enabled = excluded.enabled,
+                    updated_at = datetime('now')",
+                params![
+                    plugin.info.id,
+                    plugin.info.name,
+                    plugin.info.version,
+                    plugin.info.author,
+                    plugin.info.plugin_type.as_str(),
+                    plugin.file_path,
+                    plugin.enabled as i32,
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
+    pub fn list_plugin_records(&self) -> Result<Vec<PluginRecord>, DbError> {
+        self.with_conn(|c| {
+            let mut stmt = c.prepare(
+                "SELECT id, name, version, author, plugin_type, file_path, enabled, installed_at, updated_at
+                 FROM plugins ORDER BY updated_at DESC",
+            )?;
+            let rows = stmt
+                .query_map([], row_to_plugin_record)?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+    }
 }
 
 fn row_to_playlist(row: &rusqlite::Row<'_>) -> rusqlite::Result<Playlist> {
@@ -128,6 +253,59 @@ fn row_to_song(row: &rusqlite::Row<'_>) -> rusqlite::Result<Song> {
         duration: row.get(6)?,
         lyric_text: row.get(7)?,
         play_url: None,
+    })
+}
+
+fn row_to_play_history(row: &rusqlite::Row<'_>) -> rusqlite::Result<PlayHistoryRecord> {
+    Ok(PlayHistoryRecord {
+        id: row.get(0)?,
+        song: Song {
+            id: row.get(1)?,
+            source: row.get(2)?,
+            title: row.get(3)?,
+            artist: row.get(4)?,
+            album: row.get(5)?,
+            cover_url: row.get(6)?,
+            duration: row.get(7)?,
+            lyric_text: row.get(8)?,
+            play_url: None,
+        },
+        played_at: row.get(9)?,
+        duration_played: row.get(10)?,
+    })
+}
+
+fn row_to_plugin_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<PluginRecord> {
+    let id: String = row.get(0)?;
+    let name: String = row.get(1)?;
+    let version: String = row.get(2)?;
+    let author: Option<String> = row.get(3)?;
+    let plugin_type: String = row.get(4)?;
+    let file_path: String = row.get(5)?;
+    let enabled: i32 = row.get(6)?;
+    let installed_at: String = row.get(7)?;
+    let updated_at: String = row.get(8)?;
+
+    Ok(PluginRecord {
+        info: PluginInfo {
+            id,
+            name,
+            description: String::new(),
+            version,
+            author: author.unwrap_or_default(),
+            homepage: String::new(),
+            plugin_type: PluginType::from_str(&plugin_type),
+        },
+        sources: Vec::new(),
+        file_path,
+        enabled: enabled != 0,
+        status: if enabled != 0 {
+            PluginStatus::Ready
+        } else {
+            PluginStatus::Disabled
+        },
+        installed_at,
+        updated_at,
     })
 }
 
@@ -216,5 +394,67 @@ mod tests {
         assert_eq!(db.get_setting("volume").unwrap(), Some("0.8".into()));
         db.set_setting("volume", "0.5").unwrap();
         assert_eq!(db.get_setting("volume").unwrap(), Some("0.5".into()));
+    }
+
+    #[test]
+    fn play_history_and_recent_songs() {
+        let db = setup();
+        let song = sample_song();
+
+        let history = db.record_play_history(&song, Some(8.0)).unwrap();
+        assert_eq!(history.song.id, song.id);
+        assert_eq!(history.duration_played, Some(8.0));
+
+        db.record_play_history(&song, Some(9.0)).unwrap();
+        let all = db.list_play_history(10).unwrap();
+        assert_eq!(all.len(), 2);
+
+        let recent = db.list_recent_songs(10).unwrap();
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].id, song.id);
+    }
+
+    #[test]
+    fn song_lyrics_cache() {
+        let db = setup();
+        let song = sample_song();
+        db.upsert_song(&song).unwrap();
+
+        assert_eq!(db.get_song_lyrics(&song.id).unwrap(), None);
+        assert!(db.set_song_lyrics(&song.id, "[00:00]Demo").unwrap());
+        assert_eq!(
+            db.get_song_lyrics(&song.id).unwrap(),
+            Some("[00:00]Demo".into())
+        );
+        assert!(!db.set_song_lyrics("missing", "lyric").unwrap());
+    }
+
+    #[test]
+    fn plugin_record_crud() {
+        let db = setup();
+        let plugin = PluginRecord {
+            info: PluginInfo {
+                id: "plugin:demo".into(),
+                name: "Demo Plugin".into(),
+                description: String::new(),
+                version: "1.0.0".into(),
+                author: "tester".into(),
+                homepage: String::new(),
+                plugin_type: PluginType::Lx,
+            },
+            sources: Vec::new(),
+            file_path: "resources/demo.js".into(),
+            enabled: true,
+            status: PluginStatus::Ready,
+            installed_at: String::new(),
+            updated_at: String::new(),
+        };
+
+        db.upsert_plugin_record(&plugin).unwrap();
+        let plugins = db.list_plugin_records().unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(plugins[0].info.id, plugin.info.id);
+        assert_eq!(plugins[0].info.plugin_type, PluginType::Lx);
+        assert!(plugins[0].enabled);
     }
 }

@@ -1,3 +1,4 @@
+pub mod history;
 pub mod lyrics;
 pub mod player;
 pub mod playlist;
