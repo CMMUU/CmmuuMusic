@@ -2,8 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePlaylistStore } from '@/stores/playlist'
+import { usePlayerStore } from '@/stores/player'
 
 const playlist = usePlaylistStore()
+const player = usePlayerStore()
 const { playlists, loading, selectedSongs, selectedPlaylistId, songsLoading } = storeToRefs(playlist)
 
 const name = ref('')
@@ -53,6 +55,10 @@ async function selectPlaylist(id: string) {
   } catch (e) {
     error.value = String(e)
   }
+}
+
+function addSelectedSongsToQueue() {
+  player.addManyToQueue(selectedSongs.value)
 }
 </script>
 
@@ -105,7 +111,12 @@ async function selectPlaylist(id: string) {
       <p class="empty__hint">创建一个歌单后，它会保存到本地数据库。</p>
     </div>
     <section v-if="selectedPlaylistId" class="songs-panel">
-      <h2>歌单歌曲</h2>
+      <div class="songs-panel__header">
+        <h2>歌单歌曲</h2>
+        <button class="text-btn" :disabled="!selectedSongs.length" @click="addSelectedSongsToQueue">
+          全部加入队列
+        </button>
+      </div>
       <div v-if="songsLoading" class="empty empty--small">加载歌曲中…</div>
       <ul v-else-if="selectedSongs.length" class="song-list">
         <li v-for="song in selectedSongs" :key="song.id" class="song-item">
@@ -299,7 +310,32 @@ async function selectPlaylist(id: string) {
 .songs-panel h2 {
   font-size: 15px;
   font-weight: 600;
+}
+
+.songs-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.text-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.text-btn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.text-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .song-list {

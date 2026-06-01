@@ -10,10 +10,15 @@ export const usePlayerStore = defineStore('player', () => {
   const duration = ref<number | null>(null)
   const volume = ref(1.0)
   const playMode = ref<PlayMode>('sequential')
+  const queue = ref<Song[]>([])
+  const currentIndex = ref(-1)
+  const lyrics = ref<string | null>(null)
 
   let pollTimer: number | null = null
 
   const isPlaying = computed(() => state.value === 'playing')
+  const hasPrevious = computed(() => queue.value.length > 0 && currentIndex.value > 0)
+  const hasNext = computed(() => queue.value.length > 0 && currentIndex.value < queue.value.length - 1)
   const progress = computed(() =>
     duration.value && duration.value > 0
       ? position.value / duration.value
@@ -45,10 +50,56 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
+  async function loadLyrics(songId: string) {
+    lyrics.value = await api.getLyrics(songId)
+  }
+
+  async function recordHistory(song: Song) {
+    try {
+      await api.recordPlayHistory(song, position.value || null)
+    } catch (e) {
+      console.error('记录播放历史失败', e)
+    }
+  }
+
+  function setCurrentFromQueue(song: Song) {
+    const idx = queue.value.findIndex((item) => item.id === song.id)
+    if (idx >= 0) {
+      currentIndex.value = idx
+    }
+  }
+
+  function addToQueue(song: Song) {
+    if (!queue.value.some((item) => item.id === song.id)) {
+      queue.value.push(song)
+    }
+  }
+
+  function addManyToQueue(songs: Song[]) {
+    for (const song of songs) addToQueue(song)
+  }
+
+  async function playQueueSong(index: number) {
+    const song = queue.value[index]
+    if (!song) return
+    currentIndex.value = index
+    if (song.playUrl) {
+      await playRemoteSong(song)
+    } else {
+      throw new Error('队列中的歌曲暂缺可播放 URL')
+    }
+  }
+
   /** 播放本地文件 */
   async function playLocalFile(path: string, song?: Song) {
     await api.playFile(path)
-    if (song) currentSong.value = song
+    if (song) {
+      currentSong.value = song
+      addToQueue(song)
+      setCurrentFromQueue(song)
+      await recordHistory(song)
+      await loadLyrics(song.id)
+    }
     startPolling()
     await syncStatus()
   }
@@ -57,6 +108,10 @@ export const usePlayerStore = defineStore('player', () => {
     if (!song.playUrl) throw new Error('该歌曲没有可播放 URL')
     await api.playUrl(song.playUrl)
     currentSong.value = song
+    addToQueue(song)
+    setCurrentFromQueue(song)
+    await recordHistory(song)
+    await loadLyrics(song.id)
     startPolling()
     await syncStatus()
   }
@@ -87,6 +142,33 @@ export const usePlayerStore = defineStore('player', () => {
       playMode.value === 'shuffle' ? 'sequential' : 'shuffle'
   }
 
+  async function playPrevious() {
+    if (!hasPrevious.value) return
+    await playQueueSong(currentIndex.value - 1)
+  }
+
+  async function playNext() {
+    if (playMode.value === 'single' && currentIndex.value >= 0) {
+      await playQueueSong(currentIndex.value)
+      return
+    }
+
+    if (playMode.value === 'shuffle' && queue.value.length > 1) {
+      let next = currentIndex.value
+      while (next === currentIndex.value) {
+        next = Math.floor(Math.random() * queue.value.length)
+      }
+      await playQueueSong(next)
+      return
+    }
+
+    if (hasNext.value) {
+      await playQueueSong(currentIndex.value + 1)
+    } else if (playMode.value === 'loop' && queue.value.length > 0) {
+      await playQueueSong(0)
+    }
+  }
+
   function cyclePlayMode() {
     const order: PlayMode[] = ['sequential', 'loop', 'shuffle', 'single']
     const idx = order.indexOf(playMode.value)
@@ -100,6 +182,11 @@ export const usePlayerStore = defineStore('player', () => {
     duration,
     volume,
     playMode,
+    queue,
+    currentIndex,
+    lyrics,
+    hasPrevious,
+    hasNext,
     isPlaying,
     progress,
     syncStatus,
@@ -111,6 +198,10 @@ export const usePlayerStore = defineStore('player', () => {
     stop,
     seek,
     setVolume,
+    addToQueue,
+    addManyToQueue,
+    playPrevious,
+    playNext,
     toggleShuffle,
     cyclePlayMode,
   }

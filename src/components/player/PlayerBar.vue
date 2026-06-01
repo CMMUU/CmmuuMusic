@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { usePlayerStore } from '@/stores/player'
 
 const player = usePlayerStore()
-const { currentSong, isPlaying, position, duration, volume, playMode } =
+const { currentSong, isPlaying, position, duration, volume, playMode, queue, lyrics, hasPrevious, hasNext } =
   storeToRefs(player)
 
 function fmt(sec: number): string {
@@ -59,6 +59,9 @@ const modeLabel = computed(() => {
         <div class="meta__artist">
           {{ currentSong?.artist ?? '—' }}
         </div>
+        <div v-if="lyrics" class="meta__lyrics">
+          {{ lyrics }}
+        </div>
       </div>
     </div>
 
@@ -67,9 +70,11 @@ const modeLabel = computed(() => {
         <button class="ctrl" title="播放模式" @click="player.cyclePlayMode()">
           {{ modeLabel }}
         </button>
+        <button class="ctrl" title="上一首" :disabled="!hasPrevious" @click="player.playPrevious()">⏮</button>
         <button class="ctrl ctrl--play" :title="isPlaying ? '暂停' : '播放'" @click="player.togglePause()">
           {{ isPlaying ? '⏸' : '▶' }}
         </button>
+        <button class="ctrl" title="下一首" :disabled="!hasNext" @click="player.playNext()">⏭</button>
         <button class="ctrl" title="停止" @click="player.stop()">⏹</button>
       </div>
       <div class="progress">
@@ -88,6 +93,7 @@ const modeLabel = computed(() => {
     </div>
 
     <div class="player-bar__right">
+      <span class="queue-count">队列 {{ queue.length }}</span>
       <span class="vol-icon">🔊</span>
       <input
         class="vol-bar"
@@ -167,12 +173,18 @@ const modeLabel = computed(() => {
   text-overflow: ellipsis;
 }
 
-.meta__artist {
+.meta__artist,
+.meta__lyrics {
   font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.meta__lyrics {
+  max-width: 260px;
+  color: var(--text-tertiary);
 }
 
 .player-bar__center {
@@ -198,6 +210,11 @@ const modeLabel = computed(() => {
 
 .ctrl:hover {
   color: var(--text-primary);
+}
+
+.ctrl:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .ctrl--play {
@@ -264,6 +281,12 @@ const modeLabel = computed(() => {
 
 .vol-icon {
   font-size: 14px;
+}
+
+.queue-count {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .vol-bar {

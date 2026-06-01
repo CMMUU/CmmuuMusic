@@ -49,6 +49,12 @@ async function addToPlaylist(song: Song) {
     actionError.value = String(e)
   }
 }
+
+function addToQueue(song: Song) {
+  actionError.value = null
+  player.addToQueue(song)
+  actionMessage.value = `已加入播放队列：${song.title}`
+}
 </script>
 
 <template>
@@ -90,6 +96,7 @@ async function addToPlaylist(song: Song) {
         </div>
         <div class="result-item__actions">
           <button class="text-btn" :disabled="!song.playUrl" @click="play(song)">播放</button>
+          <button class="text-btn" @click="addToQueue(song)">加入队列</button>
           <button class="text-btn" :disabled="!selectedPlaylistId" @click="addToPlaylist(song)">
             加入歌单
           </button>
