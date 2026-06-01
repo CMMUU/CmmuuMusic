@@ -1,6 +1,7 @@
 use tauri::State;
 use uuid::Uuid;
 
+use crate::types::music::Song;
 use crate::types::playlist::Playlist;
 use crate::AppState;
 
@@ -27,4 +28,27 @@ pub async fn list_playlists(state: State<'_, AppState>) -> Result<Vec<Playlist>,
 #[tauri::command]
 pub async fn delete_playlist(id: String, state: State<'_, AppState>) -> Result<bool, String> {
     state.db.delete_playlist(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_song_to_playlist(
+    playlist_id: String,
+    song: Song,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .add_song_to_playlist(&playlist_id, &song)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_playlist_songs(
+    playlist_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<Song>, String> {
+    state
+        .db
+        .list_playlist_songs(&playlist_id)
+        .map_err(|e| e.to_string())
 }

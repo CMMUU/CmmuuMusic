@@ -18,6 +18,7 @@ export interface Song {
   coverUrl?: string | null
   duration?: number | null
   lyricText?: string | null
+  playUrl?: string | null
 }
 
 export interface Playlist {

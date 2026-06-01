@@ -56,6 +56,8 @@ pub struct Song {
     /// 时长（秒）
     pub duration: Option<f64>,
     pub lyric_text: Option<String>,
+    /// 临时可播放 URL，仅用于搜索结果/播放请求，不持久化到 songs 表。
+    pub play_url: Option<String>,
 }
 
 /// 插件请求中携带的音乐信息（兼容原版字段命名）。

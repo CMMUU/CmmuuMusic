@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { usePlaylistStore } from '@/stores/playlist'
 
 const playlist = usePlaylistStore()
-const { playlists, loading } = storeToRefs(playlist)
+const { playlists, loading, selectedSongs, selectedPlaylistId, songsLoading } = storeToRefs(playlist)
 
 const name = ref('')
 const error = ref<string | null>(null)
@@ -45,6 +45,15 @@ async function removePlaylist(id: string) {
     error.value = String(e)
   }
 }
+
+async function selectPlaylist(id: string) {
+  error.value = null
+  try {
+    await playlist.refreshSongs(id)
+  } catch (e) {
+    error.value = String(e)
+  }
+}
 </script>
 
 <template>
@@ -72,14 +81,20 @@ async function removePlaylist(id: string) {
     <p v-if="error" class="error">{{ error }}</p>
 
     <div v-if="playlists.length" class="playlist-grid">
-      <article v-for="item in playlists" :key="item.id" class="playlist-card">
+      <article
+        v-for="item in playlists"
+        :key="item.id"
+        class="playlist-card"
+        :class="{ 'playlist-card--active': selectedPlaylistId === item.id }"
+        @click="selectPlaylist(item.id)"
+      >
         <div class="playlist-card__cover">♪</div>
         <div class="playlist-card__body">
           <h2>{{ item.name }}</h2>
-          <p>{{ item.songs.length }} 首歌曲</p>
+          <p>{{ selectedPlaylistId === item.id ? selectedSongs.length : item.songs.length }} 首歌曲</p>
           <p class="playlist-card__time">更新于 {{ item.updatedAt }}</p>
         </div>
-        <button class="playlist-card__delete" @click="removePlaylist(item.id)">
+        <button class="playlist-card__delete" @click.stop="removePlaylist(item.id)">
           删除
         </button>
       </article>
@@ -89,6 +104,17 @@ async function removePlaylist(id: string) {
       <p>还没有歌单</p>
       <p class="empty__hint">创建一个歌单后，它会保存到本地数据库。</p>
     </div>
+    <section v-if="selectedPlaylistId" class="songs-panel">
+      <h2>歌单歌曲</h2>
+      <div v-if="songsLoading" class="empty empty--small">加载歌曲中…</div>
+      <ul v-else-if="selectedSongs.length" class="song-list">
+        <li v-for="song in selectedSongs" :key="song.id" class="song-item">
+          <span class="song-item__title">{{ song.title }}</span>
+          <span class="song-item__meta">{{ song.artist ?? '未知艺人' }} · {{ song.album ?? '未知专辑' }}</span>
+        </li>
+      </ul>
+      <div v-else class="empty empty--small">这个歌单还没有歌曲</div>
+    </section>
   </div>
 </template>
 
@@ -193,6 +219,11 @@ async function removePlaylist(id: string) {
   background: var(--bg-secondary);
 }
 
+.playlist-card:hover,
+.playlist-card--active {
+  outline: 1px solid rgba(124, 108, 240, 0.45);
+}
+
 .playlist-card__cover {
   width: 52px;
   height: 52px;
@@ -252,5 +283,52 @@ async function removePlaylist(id: string) {
   margin-top: 8px;
   color: var(--text-tertiary);
   font-size: 13px;
+}
+
+.empty--small {
+  margin-top: 18px;
+}
+
+.songs-panel {
+  margin-top: 4px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.songs-panel h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.song-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.song-item:last-child {
+  border-bottom: none;
+}
+
+.song-item__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.song-item__meta {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 </style>

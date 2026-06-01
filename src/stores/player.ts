@@ -53,6 +53,14 @@ export const usePlayerStore = defineStore('player', () => {
     await syncStatus()
   }
 
+  async function playRemoteSong(song: Song) {
+    if (!song.playUrl) throw new Error('该歌曲没有可播放 URL')
+    await api.playUrl(song.playUrl)
+    currentSong.value = song
+    startPolling()
+    await syncStatus()
+  }
+
   async function togglePause() {
     await api.togglePause()
     await syncStatus()
@@ -98,6 +106,7 @@ export const usePlayerStore = defineStore('player', () => {
     startPolling,
     stopPolling,
     playLocalFile,
+    playRemoteSong,
     togglePause,
     stop,
     seek,

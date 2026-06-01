@@ -5,6 +5,7 @@ import type {
   PluginRecord,
   SearchRequest,
   SearchResult,
+  Song,
 } from '@/types'
 
 // 连通性测试
@@ -28,6 +29,10 @@ export const createPlaylist = (name: string) =>
 export const listPlaylists = () => invoke<Playlist[]>('list_playlists')
 export const deletePlaylist = (id: string) =>
   invoke<boolean>('delete_playlist', { id })
+export const addSongToPlaylist = (playlistId: string, song: Song) =>
+  invoke<void>('add_song_to_playlist', { playlistId, song })
+export const listPlaylistSongs = (playlistId: string) =>
+  invoke<Song[]>('list_playlist_songs', { playlistId })
 
 // 设置
 export const getSetting = (key: string) =>

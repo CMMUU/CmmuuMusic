@@ -17,7 +17,7 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
+        "decorations": true,
         "transparent": false,
         "center": true
       }
@@ -40,7 +40,10 @@
     "category": "Music",
     "copyright": "© 2026 CmmuuMusic",
     "shortDescription": "Cmmuu Music — 跨平台音乐播放器",
-    "longDescription": "Cmmuu Music 基于 Tauri v2 + Vue 3 的跨平台桌面音乐播放器，通过合规插件获取音乐数据。"
+    "longDescription": "Cmmuu Music 基于 Tauri v2 + Vue 3 的跨平台桌面音乐播放器，通过合规插件获取音乐数据。",
+    "resources": [
+      "resources/sources/builtin/changqing-svip-v1.2.0.js"
+    ]
   },
   "plugins": {}
 }

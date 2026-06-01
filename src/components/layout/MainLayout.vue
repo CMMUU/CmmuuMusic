@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { onMounted } from 'vue'
 import TitleBar from './TitleBar.vue'
 import SidebarNav from './SidebarNav.vue'
 import PlayerBar from '@/components/player/PlayerBar.vue'
+import { useSettingsStore } from '@/stores/settings'
+
+const settings = useSettingsStore()
+const { useCustomTitleBar } = storeToRefs(settings)
+
+onMounted(() => {
+  if (!settings.loaded) void settings.load()
+})
 </script>
 
 <template>
   <div class="app-shell">
-    <TitleBar />
+    <TitleBar v-if="useCustomTitleBar" />
     <div class="app-body">
       <SidebarNav />
       <main class="app-content">

@@ -85,8 +85,8 @@ pub trait AudioEngine: Send + Sync {
     /// 播放本地文件
     fn play_file(&self, path: &Path) -> Result<(), AudioError>;
 
-    /// 播放远程 URL（流式解码，后续阶段实现）
-    fn play_url(&self, url: &str) -> Result<(), AudioError>;
+    /// 播放已下载的音频字节（URL POC 阶段由 command 层负责异步下载）
+    fn play_bytes(&self, bytes: Vec<u8>, hint_ext: Option<&str>) -> Result<(), AudioError>;
 
     /// 暂停 / 恢复切换
     fn toggle_pause(&self);

@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::Cursor;
 use std::path::Path;
 
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -37,12 +38,28 @@ impl DecodedAudio {
 /// 后续阶段会替换为基于环形缓冲区的流式解码（SDD §7.2）。
 pub fn decode_file(path: &Path) -> Result<DecodedAudio, AudioError> {
     let file = File::open(path)?;
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
-
     let mut hint = Hint::new();
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
         hint.with_extension(ext);
     }
+
+    decode_media_source(Box::new(file), hint)
+}
+
+pub fn decode_bytes(bytes: Vec<u8>, hint_ext: Option<&str>) -> Result<DecodedAudio, AudioError> {
+    let mut hint = Hint::new();
+    if let Some(ext) = hint_ext {
+        hint.with_extension(ext);
+    }
+
+    decode_media_source(Box::new(Cursor::new(bytes)), hint)
+}
+
+fn decode_media_source(
+    source: Box<dyn symphonia::core::io::MediaSource>,
+    hint: Hint,
+) -> Result<DecodedAudio, AudioError> {
+    let mss = MediaSourceStream::new(source, Default::default());
 
     let probed = symphonia::default::get_probe()
         .format(
@@ -53,8 +70,12 @@ pub fn decode_file(path: &Path) -> Result<DecodedAudio, AudioError> {
         )
         .map_err(|e| AudioError::Decode(format!("探测格式失败: {e}")))?;
 
-    let mut format = probed.format;
+    decode_format(probed.format)
+}
 
+fn decode_format(
+    mut format: Box<dyn symphonia::core::formats::FormatReader>,
+) -> Result<DecodedAudio, AudioError> {
     let track = format
         .tracks()
         .iter()

@@ -50,6 +50,8 @@ pub fn run() {
             commands::playlist::create_playlist,
             commands::playlist::list_playlists,
             commands::playlist::delete_playlist,
+            commands::playlist::add_song_to_playlist,
+            commands::playlist::list_playlist_songs,
             // 设置
             commands::settings::get_setting,
             commands::settings::set_setting,

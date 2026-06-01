@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
+import * as api from '@/api/commands'
+import type { PluginRecord } from '@/types'
 
 const settings = useSettingsStore()
-const { themeMode } = storeToRefs(settings)
+const { themeMode, useCustomTitleBar } = storeToRefs(settings)
+const plugins = ref<PluginRecord[]>([])
+const pluginsError = ref<string | null>(null)
 
-onMounted(() => settings.load())
+onMounted(async () => {
+  await settings.load()
+  try {
+    plugins.value = await api.listPlugins()
+  } catch (e) {
+    pluginsError.value = String(e)
+  }
+})
 
 const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   { value: 'dark', label: '深色' },
@@ -35,6 +46,42 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
           </button>
         </div>
       </div>
+      <div class="setting-row">
+        <span class="setting-row__label">自定义标题栏</span>
+        <button
+          class="toggle"
+          :class="{ 'toggle--active': useCustomTitleBar }"
+          @click="settings.setUseCustomTitleBar(!useCustomTitleBar)"
+        >
+          {{ useCustomTitleBar ? '已开启' : '系统默认' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="setting-group">
+      <h2 class="setting-group__title">内置音源</h2>
+      <p v-if="pluginsError" class="setting-error">{{ pluginsError }}</p>
+      <div v-else-if="plugins.length" class="plugin-list">
+        <article v-for="plugin in plugins" :key="plugin.info.id" class="plugin-card">
+          <div class="plugin-card__main">
+            <div class="plugin-card__title">
+              <span>{{ plugin.info.name }}</span>
+              <span class="plugin-card__version">v{{ plugin.info.version }}</span>
+            </div>
+            <p>{{ plugin.info.description }}</p>
+            <p class="plugin-card__meta">
+              {{ plugin.info.pluginType.toUpperCase() }} · {{ plugin.info.author }} · {{ plugin.filePath }}
+            </p>
+            <div class="source-tags">
+              <span v-for="source in plugin.sources" :key="source.id" class="source-tag">
+                {{ source.name }}
+              </span>
+            </div>
+          </div>
+          <span class="plugin-card__status">{{ plugin.enabled ? '已启用' : '仅内置' }}</span>
+        </article>
+      </div>
+      <p v-else class="setting-row__value">暂无内置音源</p>
     </section>
 
     <section class="setting-group">
@@ -104,8 +151,91 @@ const themeOptions: { value: 'light' | 'dark' | 'system'; label: string }[] = [
   transition: all 0.15s ease;
 }
 
-.seg__item--active {
+.seg__item--active,
+.toggle--active {
   background: var(--accent);
   color: #fff;
+}
+
+.toggle {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.toggle:hover {
+  color: var(--text-primary);
+}
+
+.setting-error {
+  color: var(--error);
+  font-size: 13px;
+}
+
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plugin-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+}
+
+.plugin-card__main {
+  min-width: 0;
+}
+
+.plugin-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.plugin-card__version,
+.plugin-card__meta {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.plugin-card p {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.plugin-card__status {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(124, 108, 240, 0.16);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.source-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.source-tag {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 </style>

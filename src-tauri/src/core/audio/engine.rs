@@ -8,7 +8,7 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use parking_lot::Mutex;
 
-use super::decoder::{decode_file, DecodedAudio};
+use super::decoder::{decode_bytes, decode_file, DecodedAudio};
 use super::{AudioEngine, AudioError, PlaybackState, PlaybackStatus};
 
 /// 当前正在播放的源数据与游标（由音频回调读写）。
@@ -122,10 +122,13 @@ impl AudioEngine for CpalAudioEngine {
         Ok(())
     }
 
-    fn play_url(&self, _url: &str) -> Result<(), AudioError> {
-        Err(AudioError::NotImplemented(
-            "URL 流式播放将在音频管线阶段实现",
-        ))
+    fn play_bytes(&self, bytes: Vec<u8>, hint_ext: Option<&str>) -> Result<(), AudioError> {
+        self.shared.set_state(PlaybackState::Loading);
+        let audio = decode_bytes(bytes, hint_ext).inspect_err(|_| {
+            self.shared.set_state(PlaybackState::Error);
+        })?;
+        self.load(audio);
+        Ok(())
     }
 
     fn toggle_pause(&self) {
