@@ -69,8 +69,8 @@ export const usePlayerStore = defineStore('player', () => {
     }
   }
 
-  async function loadLyrics(songId: string) {
-    lyrics.value = await api.getLyrics(songId)
+  async function loadLyrics(song: Song) {
+    lyrics.value = song.lyricText ?? await api.getLyrics(song.id)
   }
 
   async function recordHistory(song: Song) {
@@ -136,7 +136,7 @@ export const usePlayerStore = defineStore('player', () => {
       addToQueue(song)
       setCurrentFromQueue(song)
       await recordHistory(song)
-      await loadLyrics(song.id)
+      await loadLyrics(song)
     }
     startPolling()
     await syncStatus()
@@ -149,7 +149,7 @@ export const usePlayerStore = defineStore('player', () => {
     addToQueue(song)
     setCurrentFromQueue(song)
     await recordHistory(song)
-    await loadLyrics(song.id)
+    await loadLyrics(song)
     startPolling()
     await syncStatus()
   }

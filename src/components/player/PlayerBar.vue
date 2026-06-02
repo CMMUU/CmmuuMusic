@@ -49,6 +49,15 @@ function clearQueue() {
   queueOpen.value = false
 }
 
+const lyricPreview = computed(() =>
+  lyrics.value
+    ?.split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('\n') ?? null,
+)
+
 const modeLabel = computed(() => {
   switch (playMode.value) {
     case 'sequential':
@@ -102,8 +111,8 @@ const modeLabel = computed(() => {
         <div class="meta__artist">
           {{ currentSong?.artist ?? '—' }}
         </div>
-        <div v-if="lyrics" class="meta__lyrics">
-          {{ lyrics }}
+        <div v-if="lyricPreview" class="meta__lyrics">
+          {{ lyricPreview }}
         </div>
       </div>
     </div>
@@ -340,6 +349,10 @@ const modeLabel = computed(() => {
 .meta__lyrics {
   max-width: 260px;
   color: var(--text-tertiary);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .player-bar__center {
