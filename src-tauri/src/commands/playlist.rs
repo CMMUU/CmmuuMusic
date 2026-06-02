@@ -31,6 +31,23 @@ pub async fn delete_playlist(id: String, state: State<'_, AppState>) -> Result<b
 }
 
 #[tauri::command]
+pub async fn rename_playlist(
+    id: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("歌单名称不能为空".into());
+    }
+
+    state
+        .db
+        .rename_playlist(&id, name)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn add_song_to_playlist(
     playlist_id: String,
     song: Song,
@@ -50,5 +67,17 @@ pub async fn list_playlist_songs(
     state
         .db
         .list_playlist_songs(&playlist_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_song_from_playlist(
+    playlist_id: String,
+    song_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    state
+        .db
+        .remove_song_from_playlist(&playlist_id, &song_id)
         .map_err(|e| e.to_string())
 }

@@ -44,6 +44,16 @@ impl Database {
         })
     }
 
+    pub fn rename_playlist(&self, id: &str, name: &str) -> Result<bool, DbError> {
+        self.with_conn(|c| {
+            let n = c.execute(
+                "UPDATE playlists SET name = ?2, updated_at = datetime('now') WHERE id = ?1",
+                params![id, name],
+            )?;
+            Ok(n > 0)
+        })
+    }
+
     pub fn upsert_song(&self, song: &Song) -> Result<(), DbError> {
         self.with_conn(|c| upsert_song_conn(c, song)).map(|_| ())
     }
@@ -78,6 +88,20 @@ impl Database {
                 .query_map(params![playlist_id], row_to_song)?
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(rows)
+        })
+    }
+
+    pub fn remove_song_from_playlist(
+        &self,
+        playlist_id: &str,
+        song_id: &str,
+    ) -> Result<bool, DbError> {
+        self.with_conn(|c| {
+            let n = c.execute(
+                "DELETE FROM playlist_songs WHERE playlist_id = ?1 AND song_id = ?2",
+                params![playlist_id, song_id],
+            )?;
+            Ok(n > 0)
         })
     }
 
@@ -363,6 +387,10 @@ mod tests {
         let list = db.list_playlists().unwrap();
         assert_eq!(list.len(), 1);
 
+        assert!(db.rename_playlist("p1", "新的歌单").unwrap());
+        assert_eq!(db.list_playlists().unwrap()[0].name, "新的歌单");
+        assert!(!db.rename_playlist("missing", "不会更新").unwrap());
+
         assert!(db.delete_playlist("p1").unwrap());
         assert!(db.list_playlists().unwrap().is_empty());
     }
@@ -394,6 +422,10 @@ mod tests {
         assert_eq!(songs.len(), 1);
         assert_eq!(songs[0].id, song.id);
         assert_eq!(songs[0].play_url, None);
+
+        assert!(db.remove_song_from_playlist(&pl.id, &song.id).unwrap());
+        assert!(db.list_playlist_songs(&pl.id).unwrap().is_empty());
+        assert!(!db.remove_song_from_playlist(&pl.id, &song.id).unwrap());
     }
 
     #[test]

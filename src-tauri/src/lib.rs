@@ -50,8 +50,10 @@ pub fn run() {
             commands::playlist::create_playlist,
             commands::playlist::list_playlists,
             commands::playlist::delete_playlist,
+            commands::playlist::rename_playlist,
             commands::playlist::add_song_to_playlist,
             commands::playlist::list_playlist_songs,
+            commands::playlist::remove_song_from_playlist,
             // 历史
             commands::history::record_play_history,
             commands::history::list_play_history,

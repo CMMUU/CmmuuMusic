@@ -15,10 +15,24 @@ export const usePlayerStore = defineStore('player', () => {
   const lyrics = ref<string | null>(null)
 
   let pollTimer: number | null = null
+  let lastSyncedState: PlaybackState = 'idle'
+  let handlingEnded = false
 
   const isPlaying = computed(() => state.value === 'playing')
-  const hasPrevious = computed(() => queue.value.length > 0 && currentIndex.value > 0)
-  const hasNext = computed(() => queue.value.length > 0 && currentIndex.value < queue.value.length - 1)
+  const hasPrevious = computed(() => {
+    if (queue.value.length === 0 || currentIndex.value < 0) return false
+    if (playMode.value === 'single') return true
+    if (playMode.value === 'shuffle') return queue.value.length > 1
+    if (playMode.value === 'loop') return queue.value.length > 1
+    return currentIndex.value > 0
+  })
+  const hasNext = computed(() => {
+    if (queue.value.length === 0 || currentIndex.value < 0) return false
+    if (playMode.value === 'single') return true
+    if (playMode.value === 'shuffle') return queue.value.length > 1
+    if (playMode.value === 'loop') return queue.value.length > 1
+    return currentIndex.value < queue.value.length - 1
+  })
   const progress = computed(() =>
     duration.value && duration.value > 0
       ? position.value / duration.value
@@ -29,10 +43,15 @@ export const usePlayerStore = defineStore('player', () => {
   async function syncStatus() {
     try {
       const s = await api.getPlaybackStatus()
+      const previousState = lastSyncedState
       state.value = s.state
       position.value = s.position
       duration.value = s.duration ?? null
       volume.value = s.volume
+      lastSyncedState = s.state
+      if (s.state === 'ended' && previousState !== 'ended') {
+        await handlePlaybackEnded()
+      }
     } catch (e) {
       console.error('同步播放状态失败', e)
     }
@@ -77,6 +96,25 @@ export const usePlayerStore = defineStore('player', () => {
 
   function addManyToQueue(songs: Song[]) {
     for (const song of songs) addToQueue(song)
+  }
+
+  function removeFromQueue(index: number) {
+    if (index < 0 || index >= queue.value.length) return
+    queue.value.splice(index, 1)
+    if (queue.value.length === 0) {
+      currentIndex.value = -1
+      return
+    }
+    if (index < currentIndex.value) {
+      currentIndex.value -= 1
+    } else if (index === currentIndex.value) {
+      currentIndex.value = Math.min(index, queue.value.length - 1)
+    }
+  }
+
+  function clearQueue() {
+    queue.value = []
+    currentIndex.value = -1
   }
 
   async function playQueueSong(index: number) {
@@ -143,29 +181,58 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   async function playPrevious() {
-    if (!hasPrevious.value) return
-    await playQueueSong(currentIndex.value - 1)
+    const previousIndex = getPreviousIndex()
+    if (previousIndex === null) return
+    await playQueueSong(previousIndex)
   }
 
   async function playNext() {
-    if (playMode.value === 'single' && currentIndex.value >= 0) {
-      await playQueueSong(currentIndex.value)
-      return
-    }
+    const nextIndex = getNextIndex()
+    if (nextIndex === null) return
+    await playQueueSong(nextIndex)
+  }
 
-    if (playMode.value === 'shuffle' && queue.value.length > 1) {
-      let next = currentIndex.value
-      while (next === currentIndex.value) {
-        next = Math.floor(Math.random() * queue.value.length)
+  function getPreviousIndex(): number | null {
+    if (queue.value.length === 0 || currentIndex.value < 0) return null
+    if (playMode.value === 'single') return currentIndex.value
+    if (playMode.value === 'shuffle') return pickRandomIndex()
+    if (currentIndex.value > 0) return currentIndex.value - 1
+    if (playMode.value === 'loop' && queue.value.length > 1) return queue.value.length - 1
+    return null
+  }
+
+  function getNextIndex(): number | null {
+    if (queue.value.length === 0 || currentIndex.value < 0) return null
+    if (playMode.value === 'single') return currentIndex.value
+    if (playMode.value === 'shuffle') return pickRandomIndex()
+    if (currentIndex.value < queue.value.length - 1) return currentIndex.value + 1
+    if (playMode.value === 'loop' && queue.value.length > 1) return 0
+    return null
+  }
+
+  function pickRandomIndex(): number | null {
+    if (queue.value.length <= 1) return null
+    let next = currentIndex.value
+    while (next === currentIndex.value) {
+      next = Math.floor(Math.random() * queue.value.length)
+    }
+    return next
+  }
+
+  async function handlePlaybackEnded() {
+    if (handlingEnded) return
+    handlingEnded = true
+    try {
+      const nextIndex = getNextIndex()
+      if (nextIndex === null) {
+        stopPolling()
+        return
       }
-      await playQueueSong(next)
-      return
-    }
-
-    if (hasNext.value) {
-      await playQueueSong(currentIndex.value + 1)
-    } else if (playMode.value === 'loop' && queue.value.length > 0) {
-      await playQueueSong(0)
+      await playQueueSong(nextIndex)
+    } catch (e) {
+      console.error('自动播放下一首失败', e)
+    } finally {
+      handlingEnded = false
     }
   }
 
@@ -200,6 +267,9 @@ export const usePlayerStore = defineStore('player', () => {
     setVolume,
     addToQueue,
     addManyToQueue,
+    removeFromQueue,
+    clearQueue,
+    playQueueSong,
     playPrevious,
     playNext,
     toggleShuffle,

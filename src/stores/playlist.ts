@@ -34,6 +34,11 @@ export const usePlaylistStore = defineStore('playlist', () => {
     await refresh()
   }
 
+  async function rename(id: string, name: string) {
+    await api.renamePlaylist(id, name)
+    await refresh()
+  }
+
   async function refreshSongs(playlistId: string) {
     selectedPlaylistId.value = playlistId
     songsLoading.value = true
@@ -51,6 +56,14 @@ export const usePlaylistStore = defineStore('playlist', () => {
     }
   }
 
+  async function removeSong(playlistId: string, songId: string) {
+    await api.removeSongFromPlaylist(playlistId, songId)
+    if (selectedPlaylistId.value === playlistId) {
+      await refreshSongs(playlistId)
+    }
+    await refresh()
+  }
+
   return {
     playlists,
     selectedSongs,
@@ -60,7 +73,9 @@ export const usePlaylistStore = defineStore('playlist', () => {
     refresh,
     create,
     remove,
+    rename,
     refreshSongs,
     addSong,
+    removeSong,
   }
 })

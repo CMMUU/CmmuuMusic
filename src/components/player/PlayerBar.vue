@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePlayerStore } from '@/stores/player'
 
 const player = usePlayerStore()
-const { currentSong, isPlaying, position, duration, volume, playMode, queue, lyrics, hasPrevious, hasNext } =
+const { currentSong, isPlaying, position, duration, volume, playMode, queue, currentIndex, lyrics, hasPrevious, hasNext } =
   storeToRefs(player)
+const queueOpen = ref(false)
 
 function fmt(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return '0:00'
@@ -31,6 +32,23 @@ function onVolume(e: Event) {
   player.setVolume(Number(target.value) / 100)
 }
 
+async function playQueueItem(index: number) {
+  await player.playQueueSong(index)
+  queueOpen.value = false
+}
+
+function removeQueueItem(index: number) {
+  player.removeFromQueue(index)
+  if (!queue.value.length) {
+    queueOpen.value = false
+  }
+}
+
+function clearQueue() {
+  player.clearQueue()
+  queueOpen.value = false
+}
+
 const modeLabel = computed(() => {
   switch (playMode.value) {
     case 'sequential':
@@ -47,6 +65,31 @@ const modeLabel = computed(() => {
 
 <template>
   <footer class="player-bar">
+    <div v-if="queueOpen" class="queue-panel">
+      <div class="queue-panel__header">
+        <div>
+          <h2>播放队列</h2>
+          <p>{{ queue.length }} 首歌曲</p>
+        </div>
+        <button class="queue-panel__clear" :disabled="!queue.length" @click="clearQueue">清空</button>
+      </div>
+      <div v-if="queue.length" class="queue-panel__list">
+        <div
+          v-for="(song, index) in queue"
+          :key="song.id"
+          class="queue-item"
+          :class="{ 'queue-item--active': index === currentIndex }"
+        >
+          <button class="queue-item__main" @click="playQueueItem(index)">
+            <span class="queue-item__title">{{ song.title }}</span>
+            <span class="queue-item__meta">{{ song.artist ?? '未知艺人' }} · {{ song.source }}</span>
+          </button>
+          <button class="queue-item__action" @click="removeQueueItem(index)">移除</button>
+        </div>
+      </div>
+      <div v-else class="queue-panel__empty">队列为空</div>
+    </div>
+
     <div class="player-bar__info">
       <div class="cover" :class="{ 'cover--spin': isPlaying }">
         <img v-if="currentSong?.coverUrl" :src="currentSong.coverUrl" alt="" />
@@ -93,7 +136,9 @@ const modeLabel = computed(() => {
     </div>
 
     <div class="player-bar__right">
-      <span class="queue-count">队列 {{ queue.length }}</span>
+      <button class="queue-count" :class="{ 'queue-count--active': queueOpen }" @click="queueOpen = !queueOpen">
+        队列 {{ queue.length }}
+      </button>
       <span class="vol-icon">🔊</span>
       <input
         class="vol-bar"
@@ -109,6 +154,7 @@ const modeLabel = computed(() => {
 
 <style scoped>
 .player-bar {
+  position: relative;
   height: 84px;
   flex-shrink: 0;
   background: var(--player-bg);
@@ -118,6 +164,115 @@ const modeLabel = computed(() => {
   align-items: center;
   padding: 0 24px;
   gap: 16px;
+}
+
+.queue-panel {
+  position: absolute;
+  right: 24px;
+  bottom: 96px;
+  width: min(420px, calc(100vw - 48px));
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.queue-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.queue-panel__header h2 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.queue-panel__header p,
+.queue-panel__empty {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.queue-panel__clear,
+.queue-item__action {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.queue-panel__clear:hover:not(:disabled),
+.queue-item__action:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.queue-panel__clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.queue-panel__list {
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.queue-panel__empty {
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-md);
+}
+
+.queue-item--active,
+.queue-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.queue-item__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  text-align: left;
+}
+
+.queue-item__title,
+.queue-item__meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item__title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.queue-item__meta {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .player-bar__info {
@@ -284,9 +439,17 @@ const modeLabel = computed(() => {
 }
 
 .queue-count {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-tertiary);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.queue-count:hover,
+.queue-count--active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .vol-bar {

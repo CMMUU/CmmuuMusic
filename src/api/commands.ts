@@ -31,10 +31,14 @@ export const createPlaylist = (name: string) =>
 export const listPlaylists = () => invoke<Playlist[]>('list_playlists')
 export const deletePlaylist = (id: string) =>
   invoke<boolean>('delete_playlist', { id })
+export const renamePlaylist = (id: string, name: string) =>
+  invoke<boolean>('rename_playlist', { id, name })
 export const addSongToPlaylist = (playlistId: string, song: Song) =>
   invoke<void>('add_song_to_playlist', { playlistId, song })
 export const listPlaylistSongs = (playlistId: string) =>
   invoke<Song[]>('list_playlist_songs', { playlistId })
+export const removeSongFromPlaylist = (playlistId: string, songId: string) =>
+  invoke<boolean>('remove_song_from_playlist', { playlistId, songId })
 
 // 播放历史
 export const recordPlayHistory = (song: Song, durationPlayed?: number | null) =>

@@ -48,6 +48,18 @@ async function removePlaylist(id: string) {
   }
 }
 
+async function renamePlaylist(id: string, currentName: string) {
+  const nextName = window.prompt('请输入新的歌单名称', currentName)?.trim()
+  if (!nextName || nextName === currentName) return
+
+  error.value = null
+  try {
+    await playlist.rename(id, nextName)
+  } catch (e) {
+    error.value = String(e)
+  }
+}
+
 async function selectPlaylist(id: string) {
   error.value = null
   try {
@@ -59,6 +71,17 @@ async function selectPlaylist(id: string) {
 
 function addSelectedSongsToQueue() {
   player.addManyToQueue(selectedSongs.value)
+}
+
+async function removeSongFromPlaylist(songId: string) {
+  if (!selectedPlaylistId.value) return
+
+  error.value = null
+  try {
+    await playlist.removeSong(selectedPlaylistId.value, songId)
+  } catch (e) {
+    error.value = String(e)
+  }
 }
 </script>
 
@@ -100,9 +123,14 @@ function addSelectedSongsToQueue() {
           <p>{{ selectedPlaylistId === item.id ? selectedSongs.length : item.songs.length }} 首歌曲</p>
           <p class="playlist-card__time">更新于 {{ item.updatedAt }}</p>
         </div>
-        <button class="playlist-card__delete" @click.stop="removePlaylist(item.id)">
-          删除
-        </button>
+        <div class="playlist-card__actions">
+          <button class="playlist-card__action" @click.stop="renamePlaylist(item.id, item.name)">
+            重命名
+          </button>
+          <button class="playlist-card__action playlist-card__action--danger" @click.stop="removePlaylist(item.id)">
+            删除
+          </button>
+        </div>
       </article>
     </div>
 
@@ -124,7 +152,10 @@ function addSelectedSongsToQueue() {
             <span class="song-item__title">{{ song.title }}</span>
             <span class="song-item__meta">{{ song.artist ?? '未知艺人' }} · {{ song.album ?? '未知专辑' }}</span>
           </div>
-          <button class="text-btn" @click="player.addToQueue(song)">加入队列</button>
+          <div class="song-item__actions">
+            <button class="text-btn" @click="player.addToQueue(song)">加入队列</button>
+            <button class="text-btn text-btn--danger" @click="removeSongFromPlaylist(song.id)">移除</button>
+          </div>
         </li>
       </ul>
       <div v-else class="empty empty--small">这个歌单还没有歌曲</div>
@@ -274,15 +305,27 @@ function addSelectedSongsToQueue() {
   color: var(--text-tertiary) !important;
 }
 
-.playlist-card__delete {
+.playlist-card__actions {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playlist-card__action {
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   color: var(--text-tertiary);
   font-size: 12px;
 }
 
-.playlist-card__delete:hover {
+.playlist-card__action:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.playlist-card__action--danger:hover,
+.text-btn--danger:hover:not(:disabled) {
   background: rgba(255, 69, 58, 0.1);
   color: var(--error);
 }
@@ -355,6 +398,12 @@ function addSelectedSongsToQueue() {
   gap: 16px;
   padding: 10px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.song-item__actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
 }
 
 .song-item__main {
