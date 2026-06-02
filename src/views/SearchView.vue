@@ -34,17 +34,17 @@ const sourceOptions = computed(() => [
 onMounted(async () => {
   await Promise.all([playlist.refresh(), refreshPlugins()])
   selectedPlaylistId.value = playlists.value[0]?.id ?? ''
+  searchType.value = 'playlist'
+  source.value = defaultPlaylistSource()
   normalizeSource()
   autoSearchReady.value = true
-  if (searchType.value === 'playlist') {
-    await refreshSourcePlaylists()
-  }
+  await refreshSourcePlaylists()
 })
 
 watch([searchType, source], async ([nextSearchType], [prevSearchType]) => {
   if (!autoSearchReady.value) return
   if (nextSearchType === 'playlist' && prevSearchType !== 'playlist') {
-    source.value = 'all'
+    source.value = defaultPlaylistSource()
   }
   normalizeSource()
   if (searchType.value === 'playlist') {
@@ -59,9 +59,13 @@ async function refreshPlugins() {
   plugins.value = await api.listPlugins()
 }
 
+function defaultPlaylistSource() {
+  return plugins.value.find((plugin) => plugin.enabled)?.info.id ?? 'demo'
+}
+
 function normalizeSource() {
   if (!sourceOptions.value.some((item) => item.value === source.value)) {
-    source.value = 'all'
+    source.value = defaultPlaylistSource()
   }
 }
 
