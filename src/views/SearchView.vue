@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSearchStore } from '@/stores/search'
 import { usePlayerStore } from '@/stores/player'
@@ -18,6 +18,7 @@ const plugins = ref<PluginRecord[]>([])
 const selectedSourcePlaylist = ref<SourcePlaylist | null>(null)
 const sourcePlaylistSongs = ref<Song[]>([])
 const sourcePlaylistLoading = ref(false)
+const autoSearchReady = ref(false)
 const actionMessage = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 
@@ -34,6 +35,21 @@ onMounted(async () => {
   await Promise.all([playlist.refresh(), refreshPlugins()])
   selectedPlaylistId.value = playlists.value[0]?.id ?? ''
   normalizeSource()
+  autoSearchReady.value = true
+  if (searchType.value === 'playlist') {
+    await refreshSourcePlaylists()
+  }
+})
+
+watch([searchType, source], async () => {
+  if (!autoSearchReady.value) return
+  normalizeSource()
+  if (searchType.value === 'playlist') {
+    await refreshSourcePlaylists()
+  } else {
+    selectedSourcePlaylist.value = null
+    sourcePlaylistSongs.value = []
+  }
 })
 
 async function refreshPlugins() {
@@ -51,17 +67,38 @@ async function searchCurrent() {
   selectedSourcePlaylist.value = null
   sourcePlaylistSongs.value = []
   await search.search()
+  if (searchType.value === 'playlist') {
+    await loadFirstSourcePlaylistSongs()
+  }
 }
 
-async function selectSourcePlaylist(item: SourcePlaylist) {
+async function refreshSourcePlaylists() {
+  selectedSourcePlaylist.value = null
+  sourcePlaylistSongs.value = []
+  await search.search()
+  await loadFirstSourcePlaylistSongs()
+}
+
+async function loadFirstSourcePlaylistSongs() {
+  const first = result.value?.playlists[0]
+  if (first) {
+    await selectSourcePlaylist(first, false)
+  }
+}
+
+async function selectSourcePlaylist(item: SourcePlaylist, showMessage = true) {
   actionError.value = null
-  actionMessage.value = null
+  if (showMessage) {
+    actionMessage.value = null
+  }
   selectedSourcePlaylist.value = item
   sourcePlaylistSongs.value = []
   sourcePlaylistLoading.value = true
   try {
     sourcePlaylistSongs.value = await api.listSourcePlaylistSongs(item.source, item.id)
-    actionMessage.value = `已加载音源歌单：${item.name}`
+    if (showMessage) {
+      actionMessage.value = `已加载音源歌单：${item.name}`
+    }
   } catch (e) {
     actionError.value = String(e)
   } finally {
@@ -110,7 +147,7 @@ function addToQueue(song: Song) {
         v-model="keyword"
         class="search__input"
         type="text"
-        placeholder="搜索 demo、SoundHelix…"
+        placeholder="搜索歌曲或选择音源查看歌单…"
         @keyup.enter="searchCurrent()"
       />
       <button class="search__btn" :disabled="loading" @click="searchCurrent()">

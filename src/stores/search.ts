@@ -12,7 +12,7 @@ export const useSearchStore = defineStore('search', () => {
   const error = ref<string | null>(null)
 
   async function search() {
-    if (!keyword.value.trim()) return
+    if (!keyword.value.trim() && searchType.value !== 'playlist') return
     loading.value = true
     error.value = null
     try {
@@ -31,7 +31,7 @@ export const useSearchStore = defineStore('search', () => {
   }
 
   async function loadMore() {
-    if (!keyword.value.trim() || !result.value?.hasMore) return
+    if ((!keyword.value.trim() && searchType.value !== 'playlist') || !result.value?.hasMore) return
     loading.value = true
     error.value = null
     try {

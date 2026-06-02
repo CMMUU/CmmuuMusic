@@ -5,7 +5,7 @@ use crate::types::search::{SearchRequest, SearchResult, SearchType, SourcePlayli
 const BUILTIN_CHANGQING_SOURCE: &str = "builtin:changqing-svip";
 
 pub fn search_all(request: &SearchRequest, builtin_changqing_enabled: bool) -> SearchResult {
-    if request.keyword.trim().is_empty() {
+    if request.keyword.trim().is_empty() && request.search_type != SearchType::Playlist {
         return empty_result(request.page);
     }
 
@@ -319,6 +319,19 @@ mod tests {
             keyword: "lx".into(),
             search_type: SearchType::Playlist,
             source: None,
+            page: 1,
+            page_size: 20,
+        }, true);
+
+        assert!(!result.playlists.is_empty());
+    }
+
+    #[test]
+    fn playlist_search_lists_builtin_with_empty_keyword() {
+        let result = search_all(&SearchRequest {
+            keyword: String::new(),
+            search_type: SearchType::Playlist,
+            source: Some(BUILTIN_CHANGQING_SOURCE.into()),
             page: 1,
             page_size: 20,
         }, true);
