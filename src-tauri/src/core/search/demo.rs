@@ -74,6 +74,7 @@ fn paginate(songs: Vec<Song>, page: u32, page_size: u32) -> SearchResult {
 
     SearchResult {
         songs: page_songs,
+        playlists: Vec::new(),
         total,
         page,
         has_more: end < songs.len(),
@@ -83,6 +84,7 @@ fn paginate(songs: Vec<Song>, page: u32, page_size: u32) -> SearchResult {
 fn empty_result(page: u32) -> SearchResult {
     SearchResult {
         songs: Vec::new(),
+        playlists: Vec::new(),
         total: 0,
         page: page.max(1),
         has_more: false,

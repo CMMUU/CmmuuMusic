@@ -65,6 +65,7 @@ pub fn run() {
             commands::plugin::set_plugin_enabled,
             // 搜索（骨架）
             commands::search::search_music,
+            commands::search::list_source_playlist_songs,
             // 歌词（骨架）
             commands::lyrics::get_lyrics,
             commands::lyrics::set_lyrics,

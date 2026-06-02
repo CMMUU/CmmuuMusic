@@ -5,16 +5,19 @@ import { useSearchStore } from '@/stores/search'
 import { usePlayerStore } from '@/stores/player'
 import { usePlaylistStore } from '@/stores/playlist'
 import * as api from '@/api/commands'
-import type { PluginRecord, Song } from '@/types'
+import type { PluginRecord, Song, SourcePlaylist } from '@/types'
 
 const search = useSearchStore()
 const player = usePlayerStore()
 const playlist = usePlaylistStore()
 
-const { keyword, source, result, loading, error } = storeToRefs(search)
+const { keyword, searchType, source, result, loading, error } = storeToRefs(search)
 const { playlists } = storeToRefs(playlist)
 const selectedPlaylistId = ref<string>('')
 const plugins = ref<PluginRecord[]>([])
+const selectedSourcePlaylist = ref<SourcePlaylist | null>(null)
+const sourcePlaylistSongs = ref<Song[]>([])
+const sourcePlaylistLoading = ref(false)
 const actionMessage = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 
@@ -45,7 +48,25 @@ function normalizeSource() {
 
 async function searchCurrent() {
   normalizeSource()
+  selectedSourcePlaylist.value = null
+  sourcePlaylistSongs.value = []
   await search.search()
+}
+
+async function selectSourcePlaylist(item: SourcePlaylist) {
+  actionError.value = null
+  actionMessage.value = null
+  selectedSourcePlaylist.value = item
+  sourcePlaylistSongs.value = []
+  sourcePlaylistLoading.value = true
+  try {
+    sourcePlaylistSongs.value = await api.listSourcePlaylistSongs(item.source, item.id)
+    actionMessage.value = `已加载音源歌单：${item.name}`
+  } catch (e) {
+    actionError.value = String(e)
+  } finally {
+    sourcePlaylistLoading.value = false
+  }
 }
 
 async function play(song: Song) {
@@ -98,13 +119,17 @@ function addToQueue(song: Song) {
     </div>
 
     <div class="search__tools">
+      <select v-model="searchType" class="playlist-select">
+        <option value="song">歌曲</option>
+        <option value="playlist">歌单</option>
+      </select>
       <select v-model="source" class="playlist-select">
         <option v-for="item in sourceOptions" :key="item.value" :value="item.value">
           {{ item.label }}
         </option>
       </select>
       <select v-model="selectedPlaylistId" class="playlist-select" :disabled="!canAddToPlaylist">
-        <option value="">{{ canAddToPlaylist ? '选择歌单' : '请先创建歌单' }}</option>
+        <option value="">{{ canAddToPlaylist ? '选择本地歌单' : '请先创建歌单' }}</option>
         <option v-for="item in playlists" :key="item.id" :value="item.id">
           {{ item.name }}
         </option>
@@ -115,7 +140,7 @@ function addToQueue(song: Song) {
     <p v-if="actionError" class="error">{{ actionError }}</p>
     <p v-if="actionMessage" class="message">{{ actionMessage }}</p>
 
-    <div v-if="result && result.songs.length" class="results">
+    <div v-if="result && searchType === 'song' && result.songs.length" class="results">
       <div class="results__summary">
         共 {{ result.total }} 条结果，当前显示 {{ result.songs.length }} 条
       </div>
@@ -139,9 +164,65 @@ function addToQueue(song: Song) {
       </button>
     </div>
 
-    <div v-else-if="result" class="empty">暂无匹配歌曲</div>
+    <div v-else-if="result && searchType === 'playlist' && result.playlists.length" class="results">
+      <div class="results__summary">
+        共 {{ result.total }} 个音源歌单，当前显示 {{ result.playlists.length }} 个
+      </div>
+      <div
+        v-for="item in result.playlists"
+        :key="item.id"
+        class="result-item playlist-result"
+        :class="{ 'playlist-result--active': selectedSourcePlaylist?.id === item.id }"
+        @click="selectSourcePlaylist(item)"
+      >
+        <div class="result-item__main">
+          <div class="result-item__title">{{ item.name }}</div>
+          <div class="result-item__meta">
+            {{ item.description ?? '暂无描述' }} · {{ item.source }} · {{ item.songCount ?? 0 }} 首
+          </div>
+        </div>
+        <div class="result-item__actions">
+          <button class="text-btn" :disabled="sourcePlaylistLoading" @click.stop="selectSourcePlaylist(item)">
+            {{ sourcePlaylistLoading && selectedSourcePlaylist?.id === item.id ? '加载中…' : '查看歌曲' }}
+          </button>
+        </div>
+      </div>
+      <button v-if="result.hasMore" class="load-more" :disabled="loading" @click="search.loadMore()">
+        {{ loading ? '加载中…' : '加载更多' }}
+      </button>
+    </div>
 
-    <div v-else class="empty">输入关键词开始搜索，试试 SoundHelix、demo 或 lx</div>
+    <section v-if="selectedSourcePlaylist" class="source-playlist-songs">
+      <div class="results__summary">
+        {{ selectedSourcePlaylist.name }} · {{ sourcePlaylistSongs.length }} 首歌曲
+      </div>
+      <div v-if="sourcePlaylistSongs.length" class="results">
+        <div v-for="song in sourcePlaylistSongs" :key="song.id" class="result-item">
+          <div class="result-item__main">
+            <div class="result-item__title">{{ song.title }}</div>
+            <div class="result-item__meta">
+              {{ song.artist ?? '未知艺人' }} · {{ song.album ?? '未知专辑' }} · {{ song.source }}
+            </div>
+          </div>
+          <div class="result-item__actions">
+            <button class="text-btn" :disabled="!song.playUrl" @click="play(song)">播放</button>
+            <button class="text-btn" @click="addToQueue(song)">加入队列</button>
+            <button class="text-btn" :disabled="!selectedPlaylistId" @click="addToPlaylist(song)">
+              加入歌单
+            </button>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty source-playlist-songs__empty">
+        {{ sourcePlaylistLoading ? '正在加载音源歌单歌曲…' : '该音源歌单暂无歌曲' }}
+      </div>
+    </section>
+
+    <div v-else-if="result" class="empty">
+      {{ searchType === 'playlist' ? '暂无匹配音源歌单' : '暂无匹配歌曲' }}
+    </div>
+
+    <div v-else class="empty">输入关键词开始搜索，试试 SoundHelix、demo、长青 或 lx</div>
   </div>
 </template>
 
@@ -243,8 +324,25 @@ function addToQueue(song: Song) {
   font-size: 14px;
 }
 
-.result-item:hover {
+.result-item:hover,
+.playlist-result--active {
   background: var(--bg-secondary);
+}
+
+.playlist-result {
+  cursor: pointer;
+}
+
+.source-playlist-songs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bg-secondary);
+}
+
+.source-playlist-songs__empty {
+  margin-top: 24px;
 }
 
 .result-item__main {

@@ -65,8 +65,18 @@ export interface SearchRequest {
   pageSize?: number
 }
 
+export interface SourcePlaylist {
+  id: string
+  source: string
+  name: string
+  description?: string | null
+  coverUrl?: string | null
+  songCount?: number | null
+}
+
 export interface SearchResult {
   songs: Song[]
+  playlists: SourcePlaylist[]
   total: number
   page: number
   hasMore: boolean

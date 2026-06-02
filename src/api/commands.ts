@@ -69,6 +69,8 @@ export const setPluginEnabled = (pluginId: string, enabled: boolean) =>
 // 搜索
 export const searchMusic = (request: SearchRequest) =>
   invoke<SearchResult>('search_music', { request })
+export const listSourcePlaylistSongs = (source: string, playlistId: string) =>
+  invoke<Song[]>('list_source_playlist_songs', { source, playlistId })
 
 // 歌词
 export const getLyrics = (songId: string) =>

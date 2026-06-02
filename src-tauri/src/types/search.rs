@@ -41,11 +41,24 @@ fn default_page_size() -> u32 {
     20
 }
 
+/// 音源侧歌单，不等同于本地 SQLite 播放列表。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePlaylist {
+    pub id: String,
+    pub source: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub cover_url: Option<String>,
+    pub song_count: Option<u32>,
+}
+
 /// 搜索结果。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub songs: Vec<Song>,
+    pub playlists: Vec<SourcePlaylist>,
     pub total: u32,
     pub page: u32,
     pub has_more: bool,

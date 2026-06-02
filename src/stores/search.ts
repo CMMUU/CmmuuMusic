@@ -45,6 +45,7 @@ export const useSearchStore = defineStore('search', () => {
       result.value = {
         ...next,
         songs: [...result.value.songs, ...next.songs],
+        playlists: [...result.value.playlists, ...next.playlists],
       }
     } catch (e) {
       error.value = String(e)
