@@ -21,6 +21,10 @@ pub fn list_source_playlist_songs(
     playlist_id: &str,
     builtin_changqing_enabled: bool,
 ) -> Vec<Song> {
+    if source == "demo" && playlist_id == "demo:playlist:soundhelix" {
+        return demo_playlist_songs();
+    }
+
     if source != BUILTIN_CHANGQING_SOURCE || !builtin_changqing_enabled {
         return Vec::new();
     }
@@ -62,7 +66,15 @@ fn search_songs(request: &SearchRequest, builtin_changqing_enabled: bool) -> Sea
 
 fn search_playlists(request: &SearchRequest, builtin_changqing_enabled: bool) -> SearchResult {
     match request.source.as_deref() {
-        None | Some("all") | Some(BUILTIN_CHANGQING_SOURCE) if builtin_changqing_enabled => {
+        None | Some("all") => {
+            let mut playlists = demo_playlists();
+            if builtin_changqing_enabled {
+                playlists.extend(filter_builtin_changqing_playlists(request));
+            }
+            paginate_playlists(playlists, request.page, request.page_size)
+        }
+        Some("demo") => paginate_playlists(demo_playlists(), request.page, request.page_size),
+        Some(BUILTIN_CHANGQING_SOURCE) if builtin_changqing_enabled => {
             search_builtin_changqing_playlists(request)
         }
         _ => empty_result(request.page),
@@ -80,13 +92,16 @@ fn search_builtin_changqing(request: &SearchRequest) -> SearchResult {
 }
 
 fn search_builtin_changqing_playlists(request: &SearchRequest) -> SearchResult {
+    let playlists = filter_builtin_changqing_playlists(request);
+    paginate_playlists(playlists, request.page, request.page_size)
+}
+
+fn filter_builtin_changqing_playlists(request: &SearchRequest) -> Vec<SourcePlaylist> {
     let keyword = request.keyword.trim().to_lowercase();
-    let playlists = builtin_changqing_playlists()
+    builtin_changqing_playlists()
         .into_iter()
         .filter(|playlist| matches_playlist(playlist, &keyword))
-        .collect::<Vec<_>>();
-
-    paginate_playlists(playlists, request.page, request.page_size)
+        .collect::<Vec<_>>()
 }
 
 fn matches_song(song: &Song, keyword: &str) -> bool {
@@ -105,7 +120,8 @@ fn matches_song(song: &Song, keyword: &str) -> bool {
 }
 
 fn matches_playlist(playlist: &SourcePlaylist, keyword: &str) -> bool {
-    playlist.name.to_lowercase().contains(keyword)
+    keyword.is_empty()
+        || playlist.name.to_lowercase().contains(keyword)
         || playlist.source.to_lowercase().contains(keyword)
         || playlist
             .description
@@ -138,6 +154,44 @@ fn builtin_changqing_catalog() -> Vec<Song> {
             duration: Some(311.0),
             lyric_text: Some("当前不执行第三方脚本，仅使用内置 provider 返回播放地址。".into()),
             play_url: Some("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3".into()),
+        },
+    ]
+}
+
+fn demo_playlists() -> Vec<SourcePlaylist> {
+    vec![SourcePlaylist {
+        id: "demo:playlist:soundhelix".into(),
+        source: "demo".into(),
+        name: "SoundHelix Demo 歌单".into(),
+        description: Some("内置 demo 音源的可播放测试歌单。".into()),
+        cover_url: None,
+        song_count: Some(2),
+    }]
+}
+
+fn demo_playlist_songs() -> Vec<Song> {
+    vec![
+        Song {
+            id: "demo:soundhelix-1".into(),
+            source: "demo".into(),
+            title: "SoundHelix Song 1".into(),
+            artist: Some("SoundHelix".into()),
+            album: Some("Demo Catalog".into()),
+            cover_url: None,
+            duration: Some(372.0),
+            lyric_text: None,
+            play_url: Some("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3".into()),
+        },
+        Song {
+            id: "demo:soundhelix-2".into(),
+            source: "demo".into(),
+            title: "SoundHelix Song 2".into(),
+            artist: Some("SoundHelix".into()),
+            album: Some("Demo Catalog".into()),
+            cover_url: None,
+            duration: Some(312.0),
+            lyric_text: None,
+            play_url: Some("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3".into()),
         },
     ]
 }
@@ -324,6 +378,35 @@ mod tests {
         }, true);
 
         assert!(!result.playlists.is_empty());
+    }
+
+    #[test]
+    fn demo_playlist_search_returns_playlist_and_songs() {
+        let result = search_all(&SearchRequest {
+            keyword: String::new(),
+            search_type: SearchType::Playlist,
+            source: Some("demo".into()),
+            page: 1,
+            page_size: 20,
+        }, false);
+
+        assert_eq!(result.playlists.len(), 1);
+        let songs = list_source_playlist_songs("demo", "demo:playlist:soundhelix", false);
+        assert_eq!(songs.len(), 2);
+        assert!(songs.iter().all(|song| song.play_url.is_some()));
+    }
+
+    #[test]
+    fn all_playlist_search_lists_demo_with_empty_keyword() {
+        let result = search_all(&SearchRequest {
+            keyword: String::new(),
+            search_type: SearchType::Playlist,
+            source: None,
+            page: 1,
+            page_size: 20,
+        }, false);
+
+        assert!(result.playlists.iter().any(|playlist| playlist.source == "demo"));
     }
 
     #[test]

@@ -41,8 +41,11 @@ onMounted(async () => {
   }
 })
 
-watch([searchType, source], async () => {
+watch([searchType, source], async ([nextSearchType], [prevSearchType]) => {
   if (!autoSearchReady.value) return
+  if (nextSearchType === 'playlist' && prevSearchType !== 'playlist') {
+    source.value = 'all'
+  }
   normalizeSource()
   if (searchType.value === 'playlist') {
     await refreshSourcePlaylists()
@@ -75,7 +78,7 @@ async function searchCurrent() {
 async function refreshSourcePlaylists() {
   selectedSourcePlaylist.value = null
   sourcePlaylistSongs.value = []
-  await search.search()
+  await search.search({ keyword: '' })
   await loadFirstSourcePlaylistSongs()
 }
 

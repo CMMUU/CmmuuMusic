@@ -11,13 +11,14 @@ export const useSearchStore = defineStore('search', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function search() {
-    if (!keyword.value.trim() && searchType.value !== 'playlist') return
+  async function search(options?: { keyword?: string }) {
+    const query = options?.keyword ?? keyword.value
+    if (!query.trim() && searchType.value !== 'playlist') return
     loading.value = true
     error.value = null
     try {
       result.value = await api.searchMusic({
-        keyword: keyword.value,
+        keyword: query,
         searchType: searchType.value,
         source: source.value === 'all' ? null : source.value,
         page: 1,
