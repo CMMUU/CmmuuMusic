@@ -8,6 +8,7 @@ const player = usePlayerStore()
 const history = ref<PlayHistoryRecord[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const message = ref<string | null>(null)
 
 onMounted(() => {
   void refresh()
@@ -16,6 +17,7 @@ onMounted(() => {
 async function refresh() {
   loading.value = true
   error.value = null
+  message.value = null
   try {
     history.value = await api.listPlayHistory(100)
   } catch (e) {
@@ -27,11 +29,26 @@ async function refresh() {
 
 async function play(record: PlayHistoryRecord) {
   error.value = null
+  message.value = null
   try {
     await player.playRemoteSong(record.song)
+    message.value = `正在播放：${record.song.title}`
   } catch (e) {
     error.value = String(e)
   }
+}
+
+function addToQueue(record: PlayHistoryRecord) {
+  error.value = null
+  player.addToQueue(record.song)
+  message.value = `已加入队列：${record.song.title}`
+}
+
+function addAllToQueue() {
+  error.value = null
+  const songs = history.value.map((record) => record.song)
+  player.addManyToQueue(songs)
+  message.value = `已加入 ${songs.length} 首最近播放歌曲到队列`
 }
 </script>
 
@@ -39,12 +56,18 @@ async function play(record: PlayHistoryRecord) {
   <div class="recent">
     <header class="recent__header">
       <h1>最近播放</h1>
-      <button class="ghost-btn" :disabled="loading" @click="refresh">
-        {{ loading ? '刷新中…' : '刷新' }}
-      </button>
+      <div class="recent__actions">
+        <button class="ghost-btn" :disabled="!history.length" @click="addAllToQueue">
+          全部加入队列
+        </button>
+        <button class="ghost-btn" :disabled="loading" @click="refresh">
+          {{ loading ? '刷新中…' : '刷新' }}
+        </button>
+      </div>
     </header>
 
     <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="message" class="message">{{ message }}</p>
 
     <ul v-if="history.length" class="history-list">
       <li v-for="record in history" :key="record.id" class="history-item">
@@ -54,7 +77,10 @@ async function play(record: PlayHistoryRecord) {
             {{ record.song.artist ?? '未知艺人' }} · {{ record.song.album ?? '未知专辑' }} · {{ record.playedAt }}
           </span>
         </div>
-        <button class="text-btn" :disabled="!record.song.playUrl" @click="play(record)">播放</button>
+        <div class="history-item__actions">
+          <button class="text-btn" @click="addToQueue(record)">加入队列</button>
+          <button class="text-btn" :disabled="!record.song.playUrl" @click="play(record)">播放</button>
+        </div>
       </li>
     </ul>
 
@@ -76,6 +102,15 @@ async function play(record: PlayHistoryRecord) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.recent__actions,
+.history-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .recent h1 {
@@ -98,12 +133,21 @@ async function play(record: PlayHistoryRecord) {
   opacity: 0.55;
 }
 
-.error {
-  color: var(--error);
+.error,
+.message {
   font-size: 13px;
-  background: rgba(255, 69, 58, 0.1);
   padding: 10px 14px;
   border-radius: var(--radius-md);
+}
+
+.error {
+  color: var(--error);
+  background: rgba(255, 69, 58, 0.1);
+}
+
+.message {
+  color: var(--success);
+  background: rgba(52, 199, 89, 0.1);
 }
 
 .history-list {
