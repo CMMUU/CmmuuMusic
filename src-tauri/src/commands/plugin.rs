@@ -15,13 +15,17 @@ pub struct RegisterLocalPluginRequest {
     pub file_path: String,
 }
 
+const BUILTIN_CHANGQING_ID: &str = "builtin:changqing-svip";
+const BUILTIN_CHANGQING_ENABLED_KEY: &str = "plugin.enabled.builtin:changqing-svip";
+
 #[tauri::command]
 pub async fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginRecord>, String> {
     let mut records = state
         .db
         .list_plugin_records()
         .map_err(|e| e.to_string())?;
-    records.push(builtin_changqing_plugin());
+    let enabled = builtin_changqing_enabled(&state)?;
+    records.push(builtin_changqing_plugin(enabled));
     Ok(records)
 }
 
@@ -59,8 +63,16 @@ pub async fn set_plugin_enabled(
     enabled: bool,
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
+    if plugin_id == BUILTIN_CHANGQING_ID {
+        state
+            .db
+            .set_setting(BUILTIN_CHANGQING_ENABLED_KEY, if enabled { "true" } else { "false" })
+            .map_err(|e| e.to_string())?;
+        return Ok(true);
+    }
+
     if plugin_id.starts_with("builtin:") {
-        return Ok(false);
+        return Err("未知内置音源".into());
     }
 
     state
@@ -69,12 +81,24 @@ pub async fn set_plugin_enabled(
         .map_err(|e| e.to_string())
 }
 
-fn builtin_changqing_plugin() -> PluginRecord {
+pub fn is_builtin_changqing_enabled(state: &State<'_, AppState>) -> Result<bool, String> {
+    builtin_changqing_enabled(state)
+}
+
+fn builtin_changqing_enabled(state: &State<'_, AppState>) -> Result<bool, String> {
+    state
+        .db
+        .get_setting(BUILTIN_CHANGQING_ENABLED_KEY)
+        .map(|value| value.as_deref() == Some("true"))
+        .map_err(|e| e.to_string())
+}
+
+fn builtin_changqing_plugin(enabled: bool) -> PluginRecord {
     PluginRecord {
         info: PluginInfo {
-            id: "builtin:changqing-svip".into(),
+            id: BUILTIN_CHANGQING_ID.into(),
             name: "长青SVIP音源".into(),
-            description: "内置 LX 兼容音源资源，当前仅登记元数据，不执行插件脚本。".into(),
+            description: "受控内置 LX 兼容音源，仅启用内置 provider，不执行第三方脚本。".into(),
             version: "1.2.0".into(),
             author: "SVIP".into(),
             homepage: "微信公众号: 元力菌".into(),
@@ -108,8 +132,12 @@ fn builtin_changqing_plugin() -> PluginRecord {
             },
         ],
         file_path: "resources/sources/builtin/changqing-svip-v1.2.0.js".into(),
-        enabled: false,
-        status: PluginStatus::Disabled,
+        enabled,
+        status: if enabled {
+            PluginStatus::Ready
+        } else {
+            PluginStatus::Disabled
+        },
         installed_at: "2026-06-02T00:00:00Z".into(),
         updated_at: "2026-06-02T00:00:00Z".into(),
     }

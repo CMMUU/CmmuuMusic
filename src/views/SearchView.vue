@@ -4,7 +4,8 @@ import { storeToRefs } from 'pinia'
 import { useSearchStore } from '@/stores/search'
 import { usePlayerStore } from '@/stores/player'
 import { usePlaylistStore } from '@/stores/playlist'
-import type { Song } from '@/types'
+import * as api from '@/api/commands'
+import type { PluginRecord, Song } from '@/types'
 
 const search = useSearchStore()
 const player = usePlayerStore()
@@ -13,20 +14,39 @@ const playlist = usePlaylistStore()
 const { keyword, source, result, loading, error } = storeToRefs(search)
 const { playlists } = storeToRefs(playlist)
 const selectedPlaylistId = ref<string>('')
+const plugins = ref<PluginRecord[]>([])
 const actionMessage = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 
 const canAddToPlaylist = computed(() => playlists.value.length > 0)
-const sourceOptions = [
+const sourceOptions = computed(() => [
   { value: 'all', label: '全部音源' },
   { value: 'demo', label: '内置 demo' },
-  { value: 'builtin:changqing-svip', label: '长青 SVIP' },
-]
+  ...plugins.value
+    .filter((plugin) => plugin.enabled)
+    .map((plugin) => ({ value: plugin.info.id, label: plugin.info.name })),
+])
 
 onMounted(async () => {
-  await playlist.refresh()
+  await Promise.all([playlist.refresh(), refreshPlugins()])
   selectedPlaylistId.value = playlists.value[0]?.id ?? ''
+  normalizeSource()
 })
+
+async function refreshPlugins() {
+  plugins.value = await api.listPlugins()
+}
+
+function normalizeSource() {
+  if (!sourceOptions.value.some((item) => item.value === source.value)) {
+    source.value = 'all'
+  }
+}
+
+async function searchCurrent() {
+  normalizeSource()
+  await search.search()
+}
 
 async function play(song: Song) {
   actionError.value = null
@@ -70,9 +90,9 @@ function addToQueue(song: Song) {
         class="search__input"
         type="text"
         placeholder="搜索 demo、SoundHelix…"
-        @keyup.enter="search.search()"
+        @keyup.enter="searchCurrent()"
       />
-      <button class="search__btn" :disabled="loading" @click="search.search()">
+      <button class="search__btn" :disabled="loading" @click="searchCurrent()">
         {{ loading ? '搜索中…' : '搜索' }}
       </button>
     </div>

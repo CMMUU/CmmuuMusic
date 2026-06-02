@@ -2,10 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
+import { usePlaylistStore } from '@/stores/playlist'
+import { useSearchStore } from '@/stores/search'
 import * as api from '@/api/commands'
 import type { PluginRecord } from '@/types'
 
 const settings = useSettingsStore()
+const playlist = usePlaylistStore()
+const search = useSearchStore()
 const { themeMode, useCustomTitleBar } = storeToRefs(settings)
 const plugins = ref<PluginRecord[]>([])
 const pluginsError = ref<string | null>(null)
@@ -35,9 +39,20 @@ async function togglePlugin(plugin: PluginRecord) {
   try {
     const changed = await api.setPluginEnabled(plugin.info.id, !plugin.enabled)
     if (!changed) {
-      pluginsError.value = '内置音源当前仅登记元数据，不能直接启用执行。'
+      pluginsError.value = '音源状态未发生变化。'
+      return
     }
     await refreshPlugins()
+    await playlist.refresh()
+    if (playlist.selectedPlaylistId) {
+      await playlist.refreshSongs(playlist.selectedPlaylistId)
+    }
+    if (!plugin.enabled && search.source === plugin.info.id) {
+      search.source = 'all'
+    }
+    if (search.keyword.trim()) {
+      await search.search()
+    }
   } catch (e) {
     pluginsError.value = String(e)
   }

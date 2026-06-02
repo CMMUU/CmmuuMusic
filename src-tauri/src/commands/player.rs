@@ -1,5 +1,7 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
+use reqwest::Url;
 use tauri::State;
 
 use crate::core::audio::PlaybackStatus;
@@ -18,6 +20,8 @@ pub async fn play_file(path: String, state: State<'_, AppState>) -> Result<(), S
 /// 播放远程 URL（POC：异步下载完整音频后交给 Symphonia 解码）。
 #[tauri::command]
 pub async fn play_url(url: String, state: State<'_, AppState>) -> Result<(), String> {
+    validate_audio_url(&url)?;
+
     let response = reqwest::get(&url)
         .await
         .map_err(|e| format!("下载音频失败: {e}"))?;
@@ -43,6 +47,46 @@ pub async fn play_url(url: String, state: State<'_, AppState>) -> Result<(), Str
         .audio
         .play_bytes(bytes.to_vec(), hint_ext.as_deref())
         .map_err(|e| e.to_string())
+}
+
+fn validate_audio_url(url: &str) -> Result<(), String> {
+    let parsed = Url::parse(url).map_err(|_| "音频地址格式无效".to_string())?;
+    if parsed.scheme() != "https" {
+        return Err("仅支持 HTTPS 音频地址".into());
+    }
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "音频地址缺少主机名".to_string())?;
+    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+        return Err("不支持本机音频地址".into());
+    }
+
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        if is_private_ip(ip) {
+            return Err("不支持内网音频地址".into());
+        }
+    }
+
+    Ok(())
+}
+
+fn is_private_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
+            ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_broadcast()
+                || ip == Ipv4Addr::UNSPECIFIED
+        }
+        IpAddr::V6(ip) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.segments()[0] & 0xfe00 == 0xfc00
+                || ip.segments()[0] & 0xffc0 == 0xfe80
+        }
+    }
 }
 
 fn extension_from_url(url: &str) -> Option<&str> {
